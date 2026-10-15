@@ -129,6 +129,42 @@ td.name{font-weight:800;white-space:normal}
 .scores tr:last-child td{border-bottom:none}
 .scores .pill{font-size:clamp(12px,1.2vw,18px);padding:7px 18px}
 .footnote{font-size:clamp(13px,1.2vw,18px);color:var(--muted);text-align:center;margin-top:clamp(14px,3vh,30px);line-height:1.6}
+
+/* ---- projected host screen: scale type up for a hall ---- */
+.is-host .qnum{font-size:clamp(20px,2.2vw,36px)}
+.is-host .timer{font-size:clamp(34px,5.4vw,78px)}
+.is-host .opt{padding:clamp(22px,2.3vw,40px);gap:14px}
+.is-host .opt .ot{font-size:clamp(26px,3.3vw,56px);line-height:1.1}
+.is-host .opt .od{font-size:clamp(16px,1.55vw,28px);line-height:1.45}
+.is-host .opt .flag{font-size:clamp(13px,1.1vw,20px);padding:6px 20px;top:-18px}
+.is-host .vs{width:clamp(62px,4.6vw,96px);height:clamp(62px,4.6vw,96px);font-size:clamp(22px,1.7vw,34px)}
+.is-host .chip{font-size:clamp(14px,1.05vw,19px);padding:8px 18px}
+.is-host .btn.sm{font-size:clamp(15px,1.1vw,20px);padding:11px 24px}
+.is-host .note{font-size:clamp(13px,1.05vw,19px)}
+.is-host .bar{height:14px}
+
+/* ---- team phones: fill the screen, thumb-sized targets ---- */
+.is-team .brand h1{font-size:19px}
+.is-team .tag{font-size:10px}
+.is-team .stage{gap:12px}
+.is-team .qnum{font-size:15px}
+.is-team .timer{font-size:32px}
+.is-team .pair{flex:1;grid-template-rows:1fr 1fr}
+.is-team .opt{min-height:0;padding:18px;border-radius:20px}
+.is-team .opt .ot{font-size:clamp(21px,5.4vw,30px)}
+.is-team .opt .od{font-size:clamp(14px,3.5vw,18px);line-height:1.45}
+.is-team .opt .pick{font-size:12px;letter-spacing:.12em}
+.is-team .opt .flag{font-size:12px;padding:4px 14px}
+.is-team .panel{padding:20px}
+.is-team .panel h2{font-size:25px}
+.is-team .panel p{font-size:15px}
+.is-team input[type=text],.is-team input[type=url],.is-team input[type=number]{font-size:17px;padding:15px 14px}
+.is-team .panel .btn{width:100%;font-size:18px;padding:16px 24px}
+.is-team .big{font-size:clamp(30px,8vw,44px)}
+.is-team .note{font-size:14px}
+@media (max-width:640px){
+  .is-team .wrap{padding-block:12px;gap:12px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -356,6 +392,7 @@ function teamLink(){
 }
 function startHost(){
   isHost=true;
+  document.body.classList.add("is-host"); document.body.classList.remove("is-team");
   LS.set("hv_room",ROOM);
   if(!/host/i.test(location.hash)) location.hash="host";
   $("roleTag").textContent="Host screen · Room "+ROOM;
@@ -545,6 +582,7 @@ function tick(){
 }
 
 /* ---------------- boot ---------------- */
+document.body.classList.add(isHost?"is-host":"is-team");
 if(isHost){
   if((DB||DEMO)&&ROOM) startHost(); else openSetup();
 } else {
