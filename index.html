@@ -149,8 +149,10 @@ td.name{font-weight:800;white-space:normal}
 .is-team .stage{gap:12px}
 .is-team .qnum{font-size:15px}
 .is-team .timer{font-size:32px}
-.is-team .pair{flex:1;grid-template-rows:1fr 1fr}
-.is-team .opt{min-height:0;padding:18px;border-radius:20px}
+/* team view always stacks and fills the screen, whatever width the browser claims */
+.is-team .pair{display:flex;flex-direction:column;flex:1;gap:12px}
+.is-team .vs{display:none}
+.is-team .opt{flex:1;min-height:110px;padding:18px;border-radius:20px;justify-content:flex-start}
 .is-team .opt .ot{font-size:clamp(21px,5.4vw,30px)}
 .is-team .opt .od{font-size:clamp(14px,3.5vw,18px);line-height:1.45}
 .is-team .opt .pick{font-size:12px;letter-spacing:.12em}
@@ -303,7 +305,8 @@ var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}
         set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 var params=new URLSearchParams(location.search);
 var isHost=/host/i.test(location.hash);
-var DB=(params.get("db")||LS.get("hv_db")||"").replace(/\/+$/,"");
+var DEFAULT_DB="https://herventure-8da33-default-rtdb.asia-southeast1.firebasedatabase.app";
+var DB=(params.get("db")||LS.get("hv_db")||DEFAULT_DB).replace(/\/+$/,"");
 var DEMO=params.get("demo")==="1"||LS.get("hv_demo")==="1";
 var ROOM=(params.get("r")||"").toUpperCase();
 var SECS=parseInt(params.get("s")||LS.get("hv_secs")||"120",10)||120;
@@ -387,7 +390,7 @@ function openJoin(){
 /* ---------------- host ---------------- */
 function teamLink(){
   var base=location.origin+location.pathname;
-  var q="?r="+encodeURIComponent(ROOM)+(DEMO?"&demo=1":"&db="+encodeURIComponent(DB));
+  var q="?r="+encodeURIComponent(ROOM)+(DEMO?"&demo=1":(DB===DEFAULT_DB?"":"&db="+encodeURIComponent(DB)));
   return base+q;
 }
 function startHost(){
