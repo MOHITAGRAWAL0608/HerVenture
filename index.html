@@ -416,9 +416,9 @@ function renderQuestion(st){
     $("qNum").textContent="Question "+(qi+1)+" of "+N;
     var pair=$("qPair");
     pair.innerHTML="";
-    pair.appendChild(optionEl(q[left],left,left==="a"?"y":"p",st,qi,mine,over));
+    pair.appendChild(optionEl(q[left],left,"y",st,qi,mine,over));
     var vs=document.createElement("div"); vs.className="vs"; vs.textContent="VS"; pair.appendChild(vs);
-    pair.appendChild(optionEl(q[right],right,right==="a"?"y":"p",st,qi,mine,over));
+    pair.appendChild(optionEl(q[right],right,"p",st,qi,mine,over));
     renderFoot(st,qi);
   } else if(isHost){
     renderFoot(st,qi);
