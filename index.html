@@ -67,7 +67,8 @@ input::placeholder{color:#B5A38C}
 .bar>i{display:block;height:100%;width:100%;background:var(--plum);transition:width .4s linear}
 .bar.warn>i{background:#C0392B}
 
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;flex:1}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
+.opt{min-height:clamp(150px,22vh,240px)}
 @media (max-width:640px){.pair{grid-template-columns:1fr}}
 .opt{position:relative;text-align:left;border:3px dashed transparent;border-radius:24px;padding:22px;
   display:flex;flex-direction:column;gap:10px;min-width:0;color:var(--maroon);background:var(--yellow)}
@@ -374,11 +375,13 @@ function loop(){
 }
 
 /* ---------------- rendering ---------------- */
-var renderKey="";
+var renderKey="",lastOver=null;
 function state(){ return room.state||{phase:"lobby"} }
 function teams(){ return room.teams||{} }
 function answers(){ return room.answers||{} }
 function myAnswer(qi){ var a=answers()[teamId]; return a?a["q"+qi]:null }
+function expiredNow(st){ if(st.phase!=="question") return false;
+  var dur=(st.dur||SECS)*1000; return (Date.now()-(st.startedAt||Date.now()))>=dur; }
 
 function render(){
   var st=state();
@@ -406,26 +409,26 @@ function renderQuestion(st){
   show("scQ");
   var qi=st.q|0,q=QUESTIONS[qi],flip=(st.flip||[])[qi]?true:false;
   var left=flip?"b":"a",right=flip?"a":"b";
-  var mine=myAnswer(qi);
-  var key=[st.phase,qi,mine,isHost].join("|");
+  var mine=myAnswer(qi),over=expiredNow(st);
+  var key=[st.phase,qi,mine,isHost,over].join("|");
   if(key!==renderKey){
     renderKey=key;
     $("qNum").textContent="Question "+(qi+1)+" of "+N;
     var pair=$("qPair");
     pair.innerHTML="";
-    pair.appendChild(optionEl(q[left],left,left==="a"?"y":"p",st,qi,mine));
+    pair.appendChild(optionEl(q[left],left,left==="a"?"y":"p",st,qi,mine,over));
     var vs=document.createElement("div"); vs.className="vs"; vs.textContent="VS"; pair.appendChild(vs);
-    pair.appendChild(optionEl(q[right],right,right==="a"?"y":"p",st,qi,mine));
+    pair.appendChild(optionEl(q[right],right,right==="a"?"y":"p",st,qi,mine,over));
     renderFoot(st,qi);
   } else if(isHost){
     renderFoot(st,qi);
   }
 }
 
-function optionEl(data,side,tone,st,qi,mine){
-  var revealed=st.phase==="reveal";
+function optionEl(data,side,tone,st,qi,mine,over){
+  var revealed=st.phase==="reveal",locked=revealed||over;
   var el;
-  if(!isHost&&!revealed){ el=document.createElement("button"); el.type="button";
+  if(!isHost&&!locked){ el=document.createElement("button"); el.type="button";
     el.onclick=function(){ store.write("answers/"+teamId+"/q"+qi,side).then(function(){ room.answers=room.answers||{}; room.answers[teamId]=room.answers[teamId]||{}; room.answers[teamId]["q"+qi]=side; render(); }); };
   } else { el=document.createElement("div"); }
   el.className="opt "+tone;
@@ -434,7 +437,7 @@ function optionEl(data,side,tone,st,qi,mine){
   var h='';
   if(revealed&&side==="b") h+='<span class="flag">Founder-safe</span>';
   h+='<div class="ot">'+esc(data.t)+'</div><div class="od">'+esc(data.d)+'</div>';
-  if(!isHost) h+='<div class="pick">'+(mine===side?"Locked in":(revealed?"":"Tap to choose"))+'</div>';
+  if(!isHost) h+='<div class="pick">'+(mine===side?"Locked in":(locked?"":"Tap to choose"))+'</div>';
   el.innerHTML=h;
   return el;
 }
@@ -445,7 +448,9 @@ function renderFoot(st,qi){
     var mine=myAnswer(qi);
     foot.innerHTML='<div class="note">'+(st.phase==="reveal"
       ? (mine==="b"?"You protected the cap table on this one.":(mine?"The other card was the founder-safe one.":"No answer submitted."))
-      : (mine?"Answer submitted. Tap the other card to change it while the clock runs.":"Pick one before the clock runs out."))+'</div>';
+      : (expiredNow(st)
+          ? (mine?"Time's up. Your answer is locked in.":"Time's up. No answer submitted for this one.")
+          : (mine?"Answer submitted. Tap the other card to change it while the clock runs.":"Pick one before the clock runs out.")))+'</div>';
     return;
   }
   var t=teams(),ids=Object.keys(t),a=answers(),done=0,ca=0,cb=0;
@@ -460,7 +465,7 @@ function renderFoot(st,qi){
       '<span class="ta" style="flex:'+ca+'">'+(ca?ca:"")+'</span><span class="tb" style="flex:'+cb+'">'+(cb?cb:"")+'</span>'+
       '</span><span>'+cb+' of '+tot+' safe</span></div>';
   } else {
-    h+='<div class="note" style="flex:1 1 160px">'+done+' of '+ids.length+' teams in</div>';
+    h+='<div class="note" style="flex:1 1 160px">'+(expiredNow(st)?"Time's up \u00b7 ":"")+done+' of '+ids.length+' teams in</div>';
   }
   h+='<div class="row">';
   if(st.phase==="question") h+='<button class="btn alt sm" id="btnReveal">Reveal answer</button>';
@@ -522,6 +527,8 @@ function tick(){
   el.classList.toggle("warn",warn);
   var bar=$("qBar"); bar.classList.toggle("warn",warn);
   bar.firstElementChild.style.width=(left/dur*100)+"%";
+  var over=(left<=0&&st.phase==="question");
+  if(over!==lastOver){ lastOver=over; render(); }
 }
 
 /* ---------------- boot ---------------- */
