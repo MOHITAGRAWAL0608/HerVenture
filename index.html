@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>This or That - Round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one full-height stage; host projects it, teams get the same stage on a phone. */
+:root{
+  --cream:#FBF1DD; --card:#FFFFFF; --ink:#3F0A24; --plum:#5B1A8C; --plum-deep:#43096B;
+  --maroon:#4E0D2A; --yellow:#F9C35C; --yellow-deep:#E9A72F; --lav:#C7ABE8; --lav-soft:#E6D9F7;
+  --rose:#F0C7C7; --line:#D9C9AE; --muted:#8A7560;
+  --display:"Fredoka",system-ui,sans-serif; --body:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:16px;-webkit-text-size-adjust:100%}
+img{max-width:100%}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+
+.wrap{min-height:100%;display:flex;flex-direction:column;gap:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:18px;max-width:1200px;margin:0 auto;width:100%}
+
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--display);font-weight:700;font-size:clamp(20px,3vw,30px);margin:0;letter-spacing:-.01em}
+.brand h1 em{font-style:normal;color:var(--yellow-deep)}
+.brand h1 b{color:var(--maroon)}
+.tag{font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:var(--muted)}
+
+.panel{background:var(--card);border:2px dashed var(--line);border-radius:22px;padding:22px}
+.panel h2{font-family:var(--display);font-size:22px;margin:0 0 6px}
+.panel p{margin:0 0 14px;line-height:1.55;color:#5B4433}
+label{display:block;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=url],input[type=number]{width:100%;padding:13px 14px;border:2px solid var(--line);border-radius:14px;background:#FFFDF8;font:inherit;color:var(--ink)}
+input::placeholder{color:#B5A38C}
+.field{margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{min-width:0}
+
+.btn{border:none;border-radius:999px;padding:14px 26px;font-family:var(--display);font-weight:600;font-size:17px;
+  background:var(--plum);color:#fff;box-shadow:0 3px 0 var(--plum-deep);transition:transform .08s}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--plum-deep)}
+.btn.alt{background:var(--yellow);color:var(--maroon);box-shadow:0 3px 0 var(--yellow-deep)}
+.btn.ghost{background:transparent;color:var(--plum);box-shadow:none;border:2px solid var(--lav)}
+.btn.sm{padding:9px 18px;font-size:15px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+.conn{position:fixed;top:env(safe-area-inset-top,0px);right:max(10px,env(safe-area-inset-right,0px));
+  margin-top:10px;z-index:9;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:6px 12px;border-radius:999px;background:#E7F3E2;color:#2E6B33;border:1px solid #BEDCB6}
+.conn.bad{background:#FBE0E0;color:#8E2020;border-color:#EFBDBD}
+
+/* stage */
+.stage{flex:1;display:flex;flex-direction:column;gap:16px}
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.qnum{font-family:var(--display);font-size:clamp(18px,2.4vw,24px);color:var(--plum)}
+.timer{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:clamp(28px,5vw,46px);color:var(--maroon);line-height:1}
+.timer.warn{color:#C0392B}
+.bar{height:10px;border-radius:999px;background:var(--lav-soft);overflow:hidden}
+.bar>i{display:block;height:100%;width:100%;background:var(--plum);transition:width .4s linear}
+.bar.warn>i{background:#C0392B}
+
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;flex:1}
+@media (max-width:640px){.pair{grid-template-columns:1fr}}
+.opt{position:relative;text-align:left;border:3px dashed transparent;border-radius:24px;padding:22px;
+  display:flex;flex-direction:column;gap:10px;min-width:0;color:var(--maroon);background:var(--yellow)}
+.opt.p{background:var(--lav);color:var(--plum-deep);border-color:#A98BD0}
+.opt.y{border-color:#D9A43F}
+.opt .ot{font-family:var(--display);font-weight:700;font-size:clamp(20px,2.6vw,30px);line-height:1.15;text-wrap:balance}
+.opt .od{font-size:clamp(14px,1.4vw,17px);line-height:1.5;opacity:.92}
+.opt .pick{margin-top:auto;font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;opacity:.75}
+button.opt{cursor:pointer;transition:transform .08s}
+button.opt:active{transform:scale(.985)}
+button.opt.chosen{box-shadow:0 0 0 5px var(--plum);border-style:solid}
+.opt .flag{position:absolute;top:-14px;left:18px;background:var(--plum);color:#fff;font-family:var(--display);
+  font-size:13px;padding:4px 14px;border-radius:999px}
+.opt.dim{opacity:.5}
+.vs{display:none}
+@media (min-width:641px){
+  .pair{grid-template-columns:1fr auto 1fr}
+  .vs{display:grid;place-items:center;align-self:center;width:62px;height:62px;border-radius:50%;
+    background:var(--ink);color:#fff;font-family:var(--display);font-size:22px}
+}
+
+.tally{display:flex;gap:10px;align-items:center;font-weight:700}
+.tallybar{flex:1;height:26px;border-radius:999px;overflow:hidden;display:flex;background:var(--lav-soft);min-width:120px}
+.tallybar span{display:grid;place-items:center;font-size:13px;color:#fff;font-weight:800}
+.tallybar .ta{background:var(--yellow-deep);color:var(--maroon)}
+.tallybar .tb{background:var(--plum)}
+
+.big{font-family:var(--display);font-size:clamp(30px,6vw,64px);margin:0;text-wrap:balance;line-height:1.05}
+.code{font-family:var(--display);font-size:clamp(40px,9vw,88px);letter-spacing:.14em;color:var(--plum);line-height:1}
+.center{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;justify-content:center;flex:1}
+.qrbox{background:#fff;padding:14px;border-radius:18px;border:2px solid var(--line);line-height:0}
+.linkbox{word-break:break-all;font-size:13px;color:var(--muted);max-width:560px}
+
+.teams{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{background:var(--lav-soft);color:var(--plum-deep);border-radius:999px;padding:7px 15px;font-weight:800;font-size:14px}
+.chip.done{background:#D8EFD2;color:#2E6B33}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+td.name{font-weight:800;white-space:normal}
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:800}
+.pill.safe{background:var(--lav-soft);color:var(--plum-deep)}
+.pill.dil{background:#FCE6BE;color:#8A5B07}
+.pill.hos{background:var(--rose);color:#8E2020}
+
+.note{font-size:13px;color:var(--muted);line-height:1.5}
+.err{color:#8E2020;font-weight:700;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="conn" class="conn" hidden>Live</div>
+<div class="wrap">
+
+  <div class="brand">
+    <h1><em>THIS</em> or <b>THAT?</b></h1>
+    <div class="tag" id="roleTag">Rapid-Fire Equity Acquisition</div>
+  </div>
+
+  <!-- ============ SETUP (host) ============ -->
+  <section id="scSetup" class="panel" hidden>
+    <h2>Host setup</h2>
+    <p>Paste your Firebase Realtime Database URL once. It is saved in this browser and built into the link teams scan.</p>
+    <div class="field">
+      <label for="dbUrl">Realtime Database URL</label>
+      <input type="url" id="dbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com" autocomplete="off">
+    </div>
+    <div class="row" style="margin-bottom:16px">
+      <div class="field" style="flex:1 1 160px;margin:0">
+        <label for="roomCode">Room code</label>
+        <input type="text" id="roomCode" maxlength="6" autocomplete="off">
+      </div>
+      <div class="field" style="flex:1 1 160px;margin:0">
+        <label for="qSecs">Seconds per question</label>
+        <input type="number" id="qSecs" min="15" max="600" value="120">
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnSetup">Open host screen</button>
+      <button class="btn ghost" id="btnDemo">Run a demo without a database</button>
+    </div>
+    <p class="note" style="margin-top:14px">Demo mode keeps everything in this browser only — good for testing the flow in two tabs on one laptop, not for the live event.</p>
+    <p class="err" id="setupErr" hidden></p>
+  </section>
+
+  <!-- ============ JOIN (team) ============ -->
+  <section id="scJoin" class="panel" hidden>
+    <h2>Join Round 2</h2>
+    <p>One phone per team. Whoever holds it submits for the whole table.</p>
+    <div class="field" id="joinCodeField" hidden>
+      <label for="joinCode">Room code</label>
+      <input type="text" id="joinCode" maxlength="6" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="teamName">Team name</label>
+      <input type="text" id="teamName" maxlength="28" placeholder="e.g. Table 4" autocomplete="off">
+    </div>
+    <button class="btn" id="btnJoin">Join</button>
+    <p class="err" id="joinErr" hidden></p>
+  </section>
+
+  <!-- ============ LOBBY ============ -->
+  <section id="scLobby" class="stage" hidden>
+    <div class="center">
+      <div class="tag">Scan to join · Round 2</div>
+      <div class="code" id="lobbyCode">----</div>
+      <div class="qrbox" id="qr"></div>
+      <div class="linkbox" id="lobbyLink"></div>
+      <div class="teams" id="lobbyTeams"></div>
+      <div class="note" id="lobbyCount">No teams yet.</div>
+      <div class="row" style="justify-content:center">
+        <button class="btn" id="btnStart">Start Round 2</button>
+        <button class="btn ghost sm" id="btnReset">Reset room</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scWait" class="stage" hidden>
+    <div class="center">
+      <div class="big" id="waitTitle">You're in.</div>
+      <p class="note" id="waitMsg">Waiting for the host to start Round 2.</p>
+    </div>
+  </section>
+
+  <!-- ============ QUESTION ============ -->
+  <section id="scQ" class="stage" hidden>
+    <div class="qhead">
+      <div class="qnum" id="qNum">Question 1 of 9</div>
+      <div class="timer" id="qTimer">2:00</div>
+    </div>
+    <div class="bar" id="qBar"><i></i></div>
+    <div class="pair" id="qPair"></div>
+    <div id="qFoot" class="row" style="align-items:center;justify-content:space-between"></div>
+  </section>
+
+  <!-- ============ FINAL ============ -->
+  <section id="scFinal" class="stage" hidden>
+    <div class="qhead"><div class="qnum">Final score</div></div>
+    <div id="finalBody"></div>
+    <div class="row" id="finalFoot"></div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------------- content: 9 term sheets from the Round 2 deck ---------------- */
+/* "a" is always the predatory / dilutive card, "b" the founder-protective one.   */
+/* Sides are flipped per question at game start so the answer isn't a pattern.    */
+var QUESTIONS=[
+ {a:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."},
+  b:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."}},
+ {a:{t:"$5M Valuation with 2 Board Seats",d:"Gives outside investors voting majority on future executive hiring."},
+  b:{t:"$4M Valuation with Observer Seats",d:"Lower valuation payout. Founders retain 100% board voting rights."}},
+ {a:{t:"$3M Capital + Full Ratchet",d:"Severe downside risk. Down-rounds wipe out remaining founder equity."},
+  b:{t:"$2M Capital + Standard Terms",d:"Standard founder protection against predatory future equity adjustments."}},
+ {a:{t:"15% ESOP Created Pre-Money",d:"Dilutes existing founders completely before new investor money enters."},
+  b:{t:"10% ESOP Shared Post-Money",d:"Splits talent pool dilution equally between founders and incoming investors."}},
+ {a:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."},
+  b:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."}},
+ {a:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."},
+  b:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."}},
+ {a:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."},
+  b:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."}},
+ {a:{t:"Founders Cash Out $250K Each",d:"Provides immediate personal financial security. Gives away 2 extra board observer seats."},
+  b:{t:"Reinvest All Capital into Startup",d:"Keeps governance clean and lean. Leaves founders with zero personal financial safety net."}},
+ {a:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."},
+  b:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."}}
+];
+var N=QUESTIONS.length;
+
+function bandFor(p){
+  if(p>60) return {k:"safe",label:"Safe Founder Control",team:100,imp:0};
+  if(p>=40) return {k:"dil",label:"Diluted Board",team:50,imp:50};
+  return {k:"hos",label:"Hostile Takeover",team:0,imp:100};
+}
+
+/* ---------------- identity / routing ---------------- */
+var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+        set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+var params=new URLSearchParams(location.search);
+var isHost=/host/i.test(location.hash);
+var DB=(params.get("db")||LS.get("hv_db")||"").replace(/\/+$/,"");
+var DEMO=params.get("demo")==="1"||LS.get("hv_demo")==="1";
+var ROOM=(params.get("r")||"").toUpperCase();
+var SECS=parseInt(params.get("s")||LS.get("hv_secs")||"120",10)||120;
+var teamId=LS.get("hv_tid"); if(!teamId){teamId="t"+Math.random().toString(36).slice(2,9);LS.set("hv_tid",teamId);}
+var teamName=null;
+
+function $(id){return document.getElementById(id)}
+function show(id){["scSetup","scJoin","scLobby","scWait","scQ","scFinal"].forEach(function(s){$(s).hidden=(s!==id)});}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+/* ---------------- storage adapter ---------------- */
+var store={
+  read:function(){
+    if(DEMO){ try{return Promise.resolve(JSON.parse(LS.get("hv_demo_"+ROOM)||"{}"))}catch(e){return Promise.resolve({})} }
+    return fetch(DB+"/rooms/"+ROOM+".json",{cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status); return r.json();
+    }).then(function(v){return v||{}});
+  },
+  write:function(sub,val){
+    if(DEMO){
+      var room={}; try{room=JSON.parse(LS.get("hv_demo_"+ROOM)||"{}")}catch(e){}
+      var parts=sub.split("/").filter(Boolean),node=room;
+      for(var i=0;i<parts.length-1;i++){ if(typeof node[parts[i]]!=="object"||node[parts[i]]===null) node[parts[i]]={}; node=node[parts[i]]; }
+      if(parts.length) node[parts[parts.length-1]]=val; else room=val;
+      LS.set("hv_demo_"+ROOM,JSON.stringify(room));
+      return Promise.resolve();
+    }
+    var url=DB+"/rooms/"+ROOM+(sub?"/"+sub:"")+".json";
+    return fetch(url,{method:"PUT",body:JSON.stringify(val)})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); });
+  }
+};
+
+var connEl=$("conn"),connBad=false;
+function setConn(ok,msg){
+  connEl.hidden=false; connEl.textContent=msg||(ok?"Live":"Reconnecting");
+  connEl.classList.toggle("bad",!ok); connBad=!ok;
+}
+
+/* ---------------- setup screen ---------------- */
+function randCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
+
+function openSetup(){
+  show("scSetup"); $("roleTag").textContent="Host setup";
+  $("dbUrl").value=DB; $("roomCode").value=ROOM||randCode(); $("qSecs").value=SECS;
+  $("btnSetup").onclick=function(){
+    var u=$("dbUrl").value.trim().replace(/\/+$/,"");
+    if(!/^https:\/\/.+/i.test(u)){ $("setupErr").hidden=false; $("setupErr").textContent="Paste the full database URL, starting with https://"; return; }
+    DB=u; DEMO=false; LS.set("hv_db",DB); LS.set("hv_demo","0");
+    ROOM=($("roomCode").value.trim().toUpperCase()||randCode());
+    SECS=Math.max(15,Math.min(600,parseInt($("qSecs").value,10)||120)); LS.set("hv_secs",String(SECS));
+    startHost();
+  };
+  $("btnDemo").onclick=function(){
+    DEMO=true; LS.set("hv_demo","1");
+    ROOM=($("roomCode").value.trim().toUpperCase()||randCode());
+    SECS=Math.max(15,Math.min(600,parseInt($("qSecs").value,10)||120)); LS.set("hv_secs",String(SECS));
+    startHost();
+  };
+}
+
+/* ---------------- join screen ---------------- */
+function openJoin(){
+  show("scJoin"); $("roleTag").textContent="Team";
+  $("joinCodeField").hidden=!!ROOM;
+  if(!ROOM) $("joinCode").value="";
+  $("btnJoin").onclick=function(){
+    var nm=$("teamName").value.trim();
+    if(!ROOM) ROOM=$("joinCode").value.trim().toUpperCase();
+    if(!ROOM){ $("joinErr").hidden=false; $("joinErr").textContent="Enter the room code shown on the main screen."; return; }
+    if(!nm){ $("joinErr").hidden=false; $("joinErr").textContent="Give your team a name so it shows on the scoreboard."; return; }
+    teamName=nm; LS.set("hv_name_"+ROOM,nm);
+    store.write("teams/"+teamId,{name:nm,at:Date.now()}).then(function(){
+      setConn(true); loop();
+    })["catch"](function(){
+      $("joinErr").hidden=false; $("joinErr").textContent="Could not reach the room. Check the code and your internet, then try again.";
+    });
+  };
+}
+
+/* ---------------- host ---------------- */
+function teamLink(){
+  var base=location.origin+location.pathname;
+  var q="?r="+encodeURIComponent(ROOM)+(DEMO?"&demo=1":"&db="+encodeURIComponent(DB));
+  return base+q;
+}
+function startHost(){
+  LS.set("hv_room",ROOM);
+  if(!/host/i.test(location.hash)) location.hash="host";
+  $("roleTag").textContent="Host screen · Room "+ROOM;
+  $("lobbyCode").textContent=ROOM;
+  $("lobbyLink").textContent=teamLink();
+  var qrHost=$("qr"); qrHost.innerHTML="";
+  if(window.QRCode){ try{ new QRCode(qrHost,{text:teamLink(),width:206,height:206,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
+  $("btnStart").onclick=function(){
+    var flip=[]; for(var i=0;i<N;i++) flip.push(Math.random()<0.5);
+    store.write("state",{phase:"question",q:0,startedAt:Date.now(),flip:flip,dur:SECS});
+  };
+  $("btnReset").onclick=function(){
+    store.write("", {state:{phase:"lobby"},teams:null,answers:null});
+  };
+  setConn(true); loop();
+}
+
+/* ---------------- polling loop ---------------- */
+var room={},pollTimer=null,tickTimer=null;
+function loop(){
+  if(pollTimer) return;
+  var pull=function(){
+    store.read().then(function(v){ room=v||{}; if(connBad) setConn(true); render(); })
+    ["catch"](function(){ setConn(false,"Reconnecting"); });
+  };
+  pull(); pollTimer=setInterval(pull,1200);
+  tickTimer=setInterval(tick,250);
+}
+
+/* ---------------- rendering ---------------- */
+var renderKey="";
+function state(){ return room.state||{phase:"lobby"} }
+function teams(){ return room.teams||{} }
+function answers(){ return room.answers||{} }
+function myAnswer(qi){ var a=answers()[teamId]; return a?a["q"+qi]:null }
+
+function render(){
+  var st=state();
+  if(st.phase==="question"||st.phase==="reveal") renderQuestion(st);
+  else if(st.phase==="final") renderFinal();
+  else renderLobby();
+}
+
+function renderLobby(){
+  if(isHost){
+    show("scLobby");
+    var t=teams(),ids=Object.keys(t),box=$("lobbyTeams");
+    box.innerHTML=ids.map(function(id){return '<span class="chip">'+esc(t[id].name)+'</span>'}).join("");
+    $("lobbyCount").textContent=ids.length?(ids.length+(ids.length===1?" team joined.":" teams joined.")):"No teams yet. Teams scan the code to join.";
+    $("btnStart").disabled=ids.length===0;
+  } else {
+    show("scWait");
+    $("waitTitle").textContent="You're in, "+(teamName||"team")+".";
+    $("waitMsg").textContent="Waiting for the host to start Round 2.";
+  }
+  renderKey="";
+}
+
+function renderQuestion(st){
+  show("scQ");
+  var qi=st.q|0,q=QUESTIONS[qi],flip=(st.flip||[])[qi]?true:false;
+  var left=flip?"b":"a",right=flip?"a":"b";
+  var mine=myAnswer(qi);
+  var key=[st.phase,qi,mine,isHost].join("|");
+  if(key!==renderKey){
+    renderKey=key;
+    $("qNum").textContent="Question "+(qi+1)+" of "+N;
+    var pair=$("qPair");
+    pair.innerHTML="";
+    pair.appendChild(optionEl(q[left],left,left==="a"?"y":"p",st,qi,mine));
+    var vs=document.createElement("div"); vs.className="vs"; vs.textContent="VS"; pair.appendChild(vs);
+    pair.appendChild(optionEl(q[right],right,right==="a"?"y":"p",st,qi,mine));
+    renderFoot(st,qi);
+  } else if(isHost){
+    renderFoot(st,qi);
+  }
+}
+
+function optionEl(data,side,tone,st,qi,mine){
+  var revealed=st.phase==="reveal";
+  var el;
+  if(!isHost&&!revealed){ el=document.createElement("button"); el.type="button";
+    el.onclick=function(){ store.write("answers/"+teamId+"/q"+qi,side).then(function(){ room.answers=room.answers||{}; room.answers[teamId]=room.answers[teamId]||{}; room.answers[teamId]["q"+qi]=side; render(); }); };
+  } else { el=document.createElement("div"); }
+  el.className="opt "+tone;
+  if(mine===side) el.className+=" chosen";
+  if(revealed&&side!=="b") el.className+=" dim";
+  var h='';
+  if(revealed&&side==="b") h+='<span class="flag">Founder-safe</span>';
+  h+='<div class="ot">'+esc(data.t)+'</div><div class="od">'+esc(data.d)+'</div>';
+  if(!isHost) h+='<div class="pick">'+(mine===side?"Locked in":(revealed?"":"Tap to choose"))+'</div>';
+  el.innerHTML=h;
+  return el;
+}
+
+function renderFoot(st,qi){
+  var foot=$("qFoot");
+  if(!isHost){
+    var mine=myAnswer(qi);
+    foot.innerHTML='<div class="note">'+(st.phase==="reveal"
+      ? (mine==="b"?"You protected the cap table on this one.":(mine?"The other card was the founder-safe one.":"No answer submitted."))
+      : (mine?"Answer submitted. Tap the other card to change it while the clock runs.":"Pick one before the clock runs out."))+'</div>';
+    return;
+  }
+  var t=teams(),ids=Object.keys(t),a=answers(),done=0,ca=0,cb=0;
+  ids.forEach(function(id){ var v=a[id]&&a[id]["q"+qi]; if(v){done++; if(v==="a")ca++; else cb++;} });
+  var h='<div class="teams" style="justify-content:flex-start">'+ids.map(function(id){
+      var v=a[id]&&a[id]["q"+qi];
+      return '<span class="chip'+(v?" done":"")+'">'+esc(t[id].name)+'</span>';
+    }).join("")+'</div>';
+  if(st.phase==="reveal"){
+    var tot=ca+cb||1;
+    h+='<div class="tally" style="flex:1 1 260px"><span>Votes</span><span class="tallybar">'+
+      '<span class="ta" style="flex:'+ca+'">'+(ca?ca:"")+'</span><span class="tb" style="flex:'+cb+'">'+(cb?cb:"")+'</span>'+
+      '</span><span>'+cb+' of '+tot+' safe</span></div>';
+  } else {
+    h+='<div class="note" style="flex:1 1 160px">'+done+' of '+ids.length+' teams in</div>';
+  }
+  h+='<div class="row">';
+  if(st.phase==="question") h+='<button class="btn alt sm" id="btnReveal">Reveal answer</button>';
+  h+='<button class="btn sm" id="btnNext">'+(qi+1>=N?"Final scores":"Next question")+'</button></div>';
+  foot.innerHTML=h;
+  var rv=$("btnReveal");
+  if(rv) rv.onclick=function(){ store.write("state/phase","reveal"); };
+  $("btnNext").onclick=function(){
+    if(qi+1>=N) store.write("state/phase","final");
+    else { store.write("state",{phase:"question",q:qi+1,startedAt:Date.now(),flip:st.flip,dur:st.dur||SECS}); }
+  };
+}
+
+function scores(){
+  var t=teams(),a=answers();
+  return Object.keys(t).map(function(id){
+    var mine=a[id]||{},c=0,ans=0;
+    for(var i=0;i<N;i++){ var v=mine["q"+i]; if(v){ans++; if(v==="b")c++;} }
+    var p=Math.round(c/N*1000)/10,b=bandFor(p);
+    return {name:t[id].name,correct:c,answered:ans,pct:p,band:b};
+  }).sort(function(x,y){return y.correct-x.correct});
+}
+
+function renderFinal(){
+  show("scFinal");
+  var rows=scores();
+  if(!rows.length){ $("finalBody").innerHTML='<p class="note">No teams joined this room.</p>'; $("finalFoot").innerHTML=""; renderKey=""; return; }
+  if(isHost){
+    $("finalBody").innerHTML='<div class="tablewrap"><table><thead><tr>'+
+      '<th>Team</th><th>Safe calls</th><th>%</th><th>Outcome</th><th>Team pts</th><th>Imposter pts</th></tr></thead><tbody>'+
+      rows.map(function(r){ return '<tr><td class="name">'+esc(r.name)+'</td><td>'+r.correct+' / '+N+'</td><td>'+r.pct+'%</td>'+
+        '<td><span class="pill '+r.band.k+'">'+r.band.label+'</span></td><td>+'+r.band.team+'</td><td>+'+r.band.imp+'</td></tr>'; }).join("")+
+      '</tbody></table></div><p class="note" style="margin-top:14px">Above 60% keeps founder control. 40–59% is a diluted board and splits the points. Below 40% is a hostile takeover and the imposters take it all.</p>';
+    $("finalFoot").innerHTML='<button class="btn ghost sm" id="btnBack">Back to lobby</button>';
+    $("btnBack").onclick=function(){ store.write("state",{phase:"lobby"}); };
+  } else {
+    var me=null,t=teams();
+    Object.keys(t).forEach(function(id){ if(id===teamId) me=t[id].name; });
+    var mine=rows.filter(function(r){return r.name===me})[0]||rows[0];
+    $("finalBody").innerHTML='<div class="center"><div class="tag">'+esc(mine.name)+'</div>'+
+      '<div class="big">'+mine.correct+' / '+N+' safe calls</div>'+
+      '<div class="code" style="font-size:clamp(30px,8vw,64px)">'+mine.pct+'%</div>'+
+      '<span class="pill '+mine.band.k+'" style="font-size:15px;padding:8px 20px">'+mine.band.label+'</span>'+
+      '<div class="note">+'+mine.band.team+' to your team · +'+mine.band.imp+' to the imposters</div></div>';
+    $("finalFoot").innerHTML="";
+  }
+  renderKey="";
+}
+
+/* ---------------- timer ---------------- */
+function tick(){
+  var st=state();
+  if(st.phase!=="question"&&st.phase!=="reveal") return;
+  if($("scQ").hidden) return;
+  var dur=(st.dur||SECS)*1000,left=Math.max(0,dur-(Date.now()-(st.startedAt||Date.now())));
+  var s=Math.ceil(left/1000),m=Math.floor(s/60),ss=s%60;
+  var el=$("qTimer"); el.textContent=m+":"+(ss<10?"0":"")+ss;
+  var warn=left<=15000&&st.phase==="question";
+  el.classList.toggle("warn",warn);
+  var bar=$("qBar"); bar.classList.toggle("warn",warn);
+  bar.firstElementChild.style.width=(left/dur*100)+"%";
+}
+
+/* ---------------- boot ---------------- */
+if(isHost){
+  if((DB||DEMO)&&ROOM) startHost(); else openSetup();
+} else {
+  if(!DB&&!DEMO){ openSetup(); }
+  else {
+    teamName=ROOM?LS.get("hv_name_"+ROOM):null;
+    if(teamName){ setConn(true); store.write("teams/"+teamId,{name:teamName,at:Date.now()}); loop(); }
+    else openJoin();
+  }
+}
+})();
+</script>
+</body>
+</html>
