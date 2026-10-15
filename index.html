@@ -343,6 +343,7 @@ function teamLink(){
   return base+q;
 }
 function startHost(){
+  isHost=true;
   LS.set("hv_room",ROOM);
   if(!/host/i.test(location.hash)) location.hash="host";
   $("roleTag").textContent="Host screen · Room "+ROOM;
