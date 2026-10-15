@@ -100,7 +100,8 @@ button.opt.chosen{box-shadow:0 0 0 5px var(--plum);border-style:solid}
 .code{font-family:var(--display);font-size:clamp(40px,9vw,88px);letter-spacing:.14em;color:var(--plum);line-height:1}
 .center{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;justify-content:center;flex:1}
 .qrbox{background:#fff;padding:14px;border-radius:18px;border:2px solid var(--line);line-height:0}
-.linkbox{word-break:break-all;font-size:13px;color:var(--muted);max-width:560px}
+.linkbox{font-size:clamp(12px,1vw,16px);color:var(--muted);max-width:620px;text-align:center}
+.linkbox b{color:var(--plum);font-weight:800}
 
 .teams{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .chip{background:var(--lav-soft);color:var(--plum-deep);border-radius:999px;padding:7px 15px;font-weight:800;font-size:14px}
@@ -400,7 +401,7 @@ function startHost(){
   if(!/host/i.test(location.hash)) location.hash="host";
   $("roleTag").textContent="Host screen · Room "+ROOM;
   $("lobbyCode").textContent=ROOM;
-  $("lobbyLink").textContent=teamLink();
+  $("lobbyLink").innerHTML='Can\u2019t scan? Open <b>'+esc((location.host+location.pathname).replace(/\/$/,""))+'</b> and enter the code above';
   var qrHost=$("qr"); qrHost.innerHTML="";
   if(window.QRCode){ try{ new QRCode(qrHost,{text:teamLink(),width:206,height:206,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
   $("btnStart").onclick=function(){
