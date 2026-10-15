@@ -118,6 +118,17 @@ td.name{font-weight:800;white-space:normal}
 
 .note{font-size:13px;color:var(--muted);line-height:1.5}
 .err{color:#8E2020;font-weight:700;font-size:14px}
+
+#scFinal{justify-content:center}
+.bigtitle{font-family:var(--display);font-size:clamp(34px,6.5vw,76px);color:var(--maroon);text-align:center;
+  line-height:1;margin:0 0 clamp(16px,3vh,34px);letter-spacing:-.01em}
+.scores th{font-size:clamp(11px,1.1vw,15px);padding-bottom:14px;color:var(--muted)}
+.scores td{font-size:clamp(16px,1.9vw,30px);padding:clamp(12px,1.6vh,22px) 14px;border-bottom:2px solid var(--line)}
+.scores td.name{font-size:clamp(18px,2.2vw,34px);font-family:var(--display);font-weight:600;color:var(--maroon)}
+.scores td.rank{font-family:var(--display);color:var(--lav);width:1%;padding-right:4px}
+.scores tr:last-child td{border-bottom:none}
+.scores .pill{font-size:clamp(12px,1.2vw,18px);padding:7px 18px}
+.footnote{font-size:clamp(13px,1.2vw,18px);color:var(--muted);text-align:center;margin-top:clamp(14px,3vh,30px);line-height:1.6}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -208,7 +219,7 @@ td.name{font-weight:800;white-space:normal}
 
   <!-- ============ FINAL ============ -->
   <section id="scFinal" class="stage" hidden>
-    <div class="qhead"><div class="qnum">Final score</div></div>
+    <div class="qhead" id="finalHead"><div class="qnum">Final score</div></div>
     <div id="finalBody"></div>
     <div class="row" id="finalFoot"></div>
   </section>
@@ -492,16 +503,18 @@ function scores(){
 function renderFinal(){
   show("scFinal");
   var rows=scores();
-  if(!rows.length){ $("finalBody").innerHTML='<p class="note">No teams joined this room.</p>'; $("finalFoot").innerHTML=""; renderKey=""; return; }
+  if(!rows.length){ $("finalHead").hidden=false; $("finalBody").innerHTML='<p class="note">No teams joined this room.</p>'; $("finalFoot").innerHTML=""; renderKey=""; return; }
   if(isHost){
-    $("finalBody").innerHTML='<div class="tablewrap"><table><thead><tr>'+
-      '<th>Team</th><th>Safe calls</th><th>%</th><th>Outcome</th><th>Team pts</th><th>Imposter pts</th></tr></thead><tbody>'+
-      rows.map(function(r){ return '<tr><td class="name">'+esc(r.name)+'</td><td>'+r.correct+' / '+N+'</td><td>'+r.pct+'%</td>'+
+    $("finalHead").hidden=true;
+    $("finalBody").innerHTML='<h2 class="bigtitle">Final Score</h2><div class="tablewrap"><table class="scores"><thead><tr>'+
+      '<th></th><th>Team</th><th>Safe calls</th><th>%</th><th>Outcome</th><th>Team pts</th><th>Imposter pts</th></tr></thead><tbody>'+
+      rows.map(function(r,i){ return '<tr><td class="rank">'+(i+1)+'</td><td class="name">'+esc(r.name)+'</td><td>'+r.correct+' / '+N+'</td><td>'+r.pct+'%</td>'+
         '<td><span class="pill '+r.band.k+'">'+r.band.label+'</span></td><td>+'+r.band.team+'</td><td>+'+r.band.imp+'</td></tr>'; }).join("")+
-      '</tbody></table></div><p class="note" style="margin-top:14px">Above 60% keeps founder control. 40–59% is a diluted board and splits the points. Below 40% is a hostile takeover and the imposters take it all.</p>';
+      '</tbody></table></div><p class="footnote">Above 60% keeps founder control · 40–59% is a diluted board, points split · Below 40% is a hostile takeover and the imposters take it all</p>';
     $("finalFoot").innerHTML='<button class="btn ghost sm" id="btnBack">Back to lobby</button>';
     $("btnBack").onclick=function(){ store.write("state",{phase:"lobby"}); };
   } else {
+    $("finalHead").hidden=false;
     var me=null,t=teams();
     Object.keys(t).forEach(function(id){ if(id===teamId) me=t[id].name; });
     var mine=rows.filter(function(r){return r.name===me})[0]||rows[0];
