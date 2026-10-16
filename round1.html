@@ -545,7 +545,7 @@ function bindJoin(){
 }
 
 /* ---------- loop ---------- */
-var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{},votes:{}},mine=null,pollTimer=null,showMoles=false,coverOpen=false,seenCrisis=0;
+var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{},votes:{}},mine=null,pollTimer=null,showMoles=false,coverOpen=false,seenCrisis=0,phaseKey="";
 function loop(){
   if(pollTimer) return;
   var pull=function(){
@@ -739,8 +739,9 @@ function renderHost(){
       var next=(ph==="assigned")?"submit":(ph==="submit"?"vote":"reveal");
       store.patch({"pub/phase":next})["catch"](function(){ setConn(false,"Failed"); });
     };
+    var pk=crisisNo()+"|"+ph;
+    if(pk!==phaseKey){ phaseKey=pk; showMoles=(ph==="reveal"); }   /* once per phase, then the host decides */
     if(ph==="reveal"){
-      showMoles=true;
       ids.forEach(function(t){                      /* record the verdict once, host can still override */
         if(!(D.caught[t]&&D.caught[t][ckey()]!==undefined)){
           var tl=tallyOf(t,crisisNo());
@@ -796,9 +797,9 @@ function renderHost(){
       if(!confirmish("Re-assign the Moles for this same crisis?")) return;
       store.patch(assignRoles(D.teams,D.players,crisisNo(),pastMoles()))["catch"](function(){ setConn(false,"Assign failed"); });
     };
-    $("btnBack").onclick=function(){ showMoles=false; store.patch({"pub/phase":"lobby"})["catch"](function(){}); };
+    $("btnBack").onclick=function(){ store.patch({"pub/phase":"lobby"})["catch"](function(){}); };
     $("btnNextCrisis").onclick=function(){
-      showMoles=false; $("nextBar").hidden=false; $("nextErr").hidden=true;
+      $("nextBar").hidden=false; $("nextErr").hidden=true;
       $("nextAnswer").value=""; $("nextAnswer").focus();
     };
     $("btnNextCancel").onclick=function(){ $("nextBar").hidden=true; };
@@ -806,7 +807,7 @@ function renderHost(){
       var a=$("nextAnswer").value.trim().toUpperCase();
       if(OPTIONS.indexOf(a)<0){ $("nextErr").hidden=false; $("nextErr").textContent="Enter A, B, C or D - the correct answer to the next crisis."; return; }
       ANSWER=a; LS.set("m_ans",ANSWER);
-      showMoles=false; $("nextBar").hidden=true;
+      $("nextBar").hidden=true;
       store.patch(assignRoles(D.teams,D.players,crisisNo()+1,pastMoles()))["catch"](function(){ setConn(false,"Assign failed"); });
     };
     return;
