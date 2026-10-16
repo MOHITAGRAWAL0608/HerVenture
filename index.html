@@ -184,6 +184,30 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
 .osolo{font-size:clamp(15px,1.5vw,19px);line-height:1.4}
 .is-host .opt .osolo{font-size:clamp(17px,1.95vw,32px);line-height:1.3}
 .is-team .opt .osolo{font-size:clamp(15px,4.1vw,20px);line-height:1.42}
+
+/* ---- polish: fill the screen, settle the hierarchy ---- */
+#scQ{justify-content:center}
+.opt{box-shadow:0 2px 0 rgba(78,13,42,.06);transition:transform .1s,box-shadow .1s}
+.opt .osolo{align-self:center}
+
+/* host / projector: cards carry the room, text sits centred in them */
+.is-host #scQ{gap:14px}
+.is-host .pair{flex:1 1 auto;align-items:stretch;max-height:62vh}
+.is-host .opt{justify-content:center;min-height:clamp(180px,30vh,380px);padding:clamp(24px,2.6vw,48px)}
+.is-host .qhead{margin-bottom:2px}
+.is-host .qtext{max-width:22ch;margin-left:auto;margin-right:auto}
+.is-host .opt.chosen,.is-host button.opt.chosen{box-shadow:0 0 0 4px var(--plum),0 10px 24px rgba(91,26,140,.16)}
+
+/* team / phone: a tap should feel like a tap */
+.is-team .opt{justify-content:flex-start}
+button.opt:active{transform:scale(.99)}
+button.opt.chosen{box-shadow:0 0 0 3px var(--plum),0 8px 18px rgba(91,26,140,.18);border-style:solid}
+.opt .pick{opacity:.68}
+.opt.chosen .pick{opacity:1}
+
+/* the revealed answer should read instantly from the back of a hall */
+.opt.dim{opacity:.42;filter:saturate(.7)}
+.flag{box-shadow:0 2px 8px rgba(67,9,107,.25)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
