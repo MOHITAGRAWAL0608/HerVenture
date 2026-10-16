@@ -331,7 +331,7 @@ var store={
   read:function(){
     if(DEMO){ try{return Promise.resolve(JSON.parse(LS.get("hv_demo_"+ROOM)||"{}"))}catch(e){return Promise.resolve({})} }
     return fetch(DB+"/rooms/"+ROOM+".json",{cache:"no-store"}).then(function(r){
-      if(!r.ok) throw new Error("HTTP "+r.status); return r.json();
+      if(!r.ok) throw new Error("HTTP "+r.status); syncClock(r); return r.json();
     }).then(function(v){return v||{}});
   },
   write:function(sub,val){
@@ -348,6 +348,18 @@ var store={
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); });
   }
 };
+
+/* Every device uses Firebase's clock, not its own, so a phone whose time is a
+   few seconds off still counts down in step with the host screen. */
+var clockOffset=0;
+function now(){ return Date.now()+clockOffset; }
+function syncClock(res){
+  try{
+    var d=res.headers.get("date"); if(!d) return;
+    var t=Date.parse(d); if(isNaN(t)) return;
+    clockOffset=(t+500)-Date.now();            /* +500ms: the header is whole seconds */
+  }catch(e){}
+}
 
 var connEl=$("conn"),connBad=false;
 function setConn(ok,msg){
@@ -414,7 +426,7 @@ function startHost(){
   if(window.QRCode){ try{ new QRCode(qrHost,{text:teamLink(),width:206,height:206,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
   $("btnStart").onclick=function(){
     var flip=[]; for(var i=0;i<N;i++) flip.push(Math.random()<0.5);
-    store.write("state",{phase:"question",q:0,startedAt:Date.now(),flip:flip,dur:SECS});
+    store.write("state",{phase:"question",q:0,startedAt:now(),flip:flip,dur:SECS});
   };
   $("btnReset").onclick=function(){
     store.write("", {state:{phase:"lobby"},teams:null,answers:null});
@@ -476,7 +488,7 @@ function teams(){ return room.teams||{} }
 function answers(){ return room.answers||{} }
 function myAnswer(qi){ var a=answers()[teamId]; return a?a["q"+qi]:null }
 function expiredNow(st){ if(st.phase!=="question") return false;
-  var dur=(st.dur||SECS)*1000; return (Date.now()-(st.startedAt||Date.now()))>=dur; }
+  var dur=(st.dur||SECS)*1000; return (now()-(st.startedAt||now()))>=dur; }
 
 function render(){
   var ae=document.activeElement;
@@ -577,7 +589,7 @@ function renderFoot(st,qi){
   if(rv) rv.onclick=function(){ store.write("state/phase","reveal"); };
   $("btnNext").onclick=function(){
     if(qi+1>=N) store.write("state/phase","final");
-    else { store.write("state",{phase:"question",q:qi+1,startedAt:Date.now(),flip:st.flip,dur:st.dur||SECS}); }
+    else { store.write("state",{phase:"question",q:qi+1,startedAt:now(),flip:st.flip,dur:st.dur||SECS}); }
   };
 }
 
@@ -622,7 +634,8 @@ function tick(){
   var st=state();
   if(st.phase!=="question"&&st.phase!=="reveal") return;
   if($("scQ").hidden) return;
-  var dur=(st.dur||SECS)*1000,left=Math.max(0,dur-(Date.now()-(st.startedAt||Date.now())));
+  var dur=(st.dur||SECS)*1000;
+  var left=Math.min(dur,Math.max(0,dur-(now()-(st.startedAt||now()))));
   var s=Math.ceil(left/1000),m=Math.floor(s/60),ss=s%60;
   var el=$("qTimer"); el.textContent=m+":"+(ss<10?"0":"")+ss;
   var warn=left<=15000&&st.phase==="question";
