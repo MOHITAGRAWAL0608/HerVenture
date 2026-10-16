@@ -176,6 +176,14 @@ td.name{font-weight:800;white-space:normal}
 button.chip{cursor:pointer;border:none;font:inherit;font-weight:800}
 button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
 .is-host .chipedit{font-size:clamp(14px,1.05vw,19px);padding:7px 16px}
+
+.qtext{font-family:var(--display);font-weight:600;color:var(--maroon);line-height:1.2;text-wrap:balance;
+  font-size:clamp(17px,2vw,24px);margin:2px 0 2px}
+.is-host .qtext{font-size:clamp(20px,2.5vw,40px);text-align:center;margin-bottom:6px}
+.is-team .qtext{font-size:clamp(16px,4.3vw,21px)}
+.osolo{font-size:clamp(15px,1.5vw,19px);line-height:1.4}
+.is-host .opt .osolo{font-size:clamp(17px,1.95vw,32px);line-height:1.3}
+.is-team .opt .osolo{font-size:clamp(15px,4.1vw,20px);line-height:1.42}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -265,6 +273,7 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
       <div class="timer" id="qTimer">2:00</div>
     </div>
     <div class="bar" id="qBar"><i></i></div>
+    <div class="qtext" id="qText"></div>
     <div class="pair" id="qPair"></div>
     <div id="qFoot" class="row" style="align-items:center;justify-content:space-between"></div>
   </section>
@@ -288,24 +297,36 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
    file and never reaches a player's device - the host screen holds the key
    locally and publishes one answer at a time, at reveal.                  */
 var QUESTIONS=[
- {o1:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."},
-  o2:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."}},
- {o1:{t:"$5M Valuation with 2 Board Seats",d:"Gives outside investors voting majority on future executive hiring."},
-  o2:{t:"$4M Valuation with Observer Seats",d:"Lower valuation payout. Founders retain 100% board voting rights."}},
- {o1:{t:"$3M Capital + Full Ratchet",d:"Severe downside risk. Down-rounds wipe out remaining founder equity."},
-  o2:{t:"$2M Capital + Standard Terms",d:"Standard founder protection against predatory future equity adjustments."}},
- {o1:{t:"15% ESOP Created Pre-Money",d:"Dilutes existing founders completely before new investor money enters."},
-  o2:{t:"10% ESOP Shared Post-Money",d:"Splits talent pool dilution equally between founders and incoming investors."}},
- {o1:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."},
-  o2:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."}},
- {o1:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."},
-  o2:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."}},
- {o1:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."},
-  o2:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."}},
- {o1:{t:"Founders Cash Out $250K Each",d:"Provides immediate personal financial security. Gives away 2 extra board observer seats."},
-  o2:{t:"Reinvest All Capital into Startup",d:"Keeps governance clean and lean. Leaves founders with zero personal financial safety net."}},
- {o1:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."},
-  o2:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."}}
+ {q:"What does research show regarding the financial performance of female-led startups relative to the amount of funding they receive?",
+  o1:{t:"They generate more revenue per dollar of capital invested, demonstrating higher overall capital efficiency."},
+  o2:{t:"They achieve similar revenue totals to male-led startups, but require longer timeframes to reach profitability."}},
+ {q:"What impact does having at least one female co-founder have on a tech startup's long-term performance?",
+  o1:{t:"It results in a statistically significant increase in business performance and exit valuation."},
+  o2:{t:"It improves internal workplace culture and employee retention, but has no measurable impact on valuation at exit."}},
+ {q:"When female-founded tech startups achieve a successful acquisition exit, what primary factor drives their deal value?",
+  o1:{t:"Disciplined unit economics and loyal, repeatable customer bases."},
+  o2:{t:"High-volume user growth fueled by aggressive venture subsidies."}},
+ {q:"How do mainstream VC firms traditionally view investments in female-focused consumer products (FemTech / Women's Health)?",
+  o1:{t:"As high-margin niche markets with limited long-term addressable scale."},
+  o2:{t:"As historically underfunded core markets poised to reach over $50 Billion globally by 2030."}},
+ {q:"Why do a higher percentage of female founders choose customer-funded bootstrapping over early-stage VC funding?",
+  o1:{t:"Because they prefer smaller business models that carry lower execution risk."},
+  o2:{t:"Because it preserves cap table control and ownership, allowing them to prove unit economics before raising capital."}},
+ {q:"What does recent operational data reveal about leadership structures in high-growth, female-led enterprises?",
+  o1:{t:"Female founders delegate operational decisions earlier to avoid management bottlenecks."},
+  o2:{t:"Female founders maintain higher cross-departmental alignment, leading to faster crisis resolution and lower team turnover."}},
+ {q:"How does embedding a purpose-driven or social impact mission affect a startup's path to a $100M valuation?",
+  o1:{t:"It slows down scaling speed because impact initiatives increase operational overhead."},
+  o2:{t:"It accelerates long-term valuation growth through higher customer loyalty and reduced employee churn."}},
+ {q:"How do successful female-led B2C startups typically achieve lower Customer Acquisition Costs (CAC) as they scale?",
+  o1:{t:"By building community-driven retention loops that generate organic customer referrals."},
+  o2:{t:"By running aggressive influencer ad campaigns to build rapid brand awareness."}},
+ {q:"Why do female founders often experience higher equity dilution during early-stage funding rounds?",
+  o1:{t:"Female founders tend to negotiate smaller initial valuations during seed-stage pitches."},
+  o2:{t:"Investors more frequently attach strict pre-money option pool and governance requirements to the deal."}},
+ {q:"When VCs ask female founders about financial projections, how do successful female founders secure higher funding amounts?",
+  o1:{t:"By giving conservative, highly detailed financial forecasts to build credibility and demonstrate risk control."},
+  o2:{t:"By actively reframing prevention/risk questions into promotion/growth answers during the pitch."}}
 ];
 var N=QUESTIONS.length;
 
@@ -633,6 +654,7 @@ function renderQuestion(st){
   if(key!==renderKey){
     renderKey=key;
     $("qNum").textContent="Question "+(qi+1)+" of "+N;
+    $("qText").textContent=q.q||"";
     var pair=$("qPair");
     pair.innerHTML="";
     pair.appendChild(optionEl(left==="a"?q.o1:q.o2,left,"y",st,qi,mine,over,rs));
@@ -659,8 +681,10 @@ function optionEl(data,side,tone,st,qi,mine,over,rs){
   if(mine===side) el.className+=" chosen";
   if(rs&&side!==rs) el.className+=" dim";
   var h='';
-  if(rs&&side===rs) h+='<span class="flag">Founder-safe</span>';
-  h+='<div class="ot">'+esc(data.t)+'</div><div class="od">'+esc(data.d)+'</div>';
+  if(rs&&side===rs) h+='<span class="flag">Correct</span>';
+  h+= data.d
+      ? '<div class="ot">'+esc(data.t)+'</div><div class="od">'+esc(data.d)+'</div>'
+      : '<div class="osolo">'+esc(data.t)+'</div>';
   if(!isHost) h+='<div class="pick">'+(mine===side?"Locked in":(locked?"":"Tap to choose"))+'</div>';
   el.innerHTML=h;
   return el;
@@ -672,7 +696,7 @@ function renderFoot(st,qi){
     var mine=myAnswer(qi);
     var rs2=revealedSide(qi);
     foot.innerHTML='<div class="note">'+(rs2
-      ? (mine===rs2?"You protected the cap table on this one.":(mine?"The other card was the founder-safe one.":"No answer submitted."))
+      ? (mine===rs2?"Correct.":(mine?"The other card was the right one.":"No answer submitted."))
       : (expiredNow(st)
           ? (mine?"Time's up. Your answer is locked in.":"Time's up. No answer submitted for this one.")
           : (mine?"Answer submitted. Tap the other card to change it while the clock runs.":"Pick one before the clock runs out.")))+'</div>';
@@ -736,7 +760,7 @@ function renderFinal(){
   if(isHost){
     $("finalHead").hidden=true;
     $("finalBody").innerHTML='<h2 class="bigtitle">Final Score</h2><div class="tablewrap"><table class="scores"><thead><tr>'+
-      '<th></th><th>Team</th><th>Safe calls</th><th>%</th><th>Outcome</th><th>Team pts</th><th>Imposter pts</th></tr></thead><tbody>'+
+      '<th></th><th>Team</th><th>Correct</th><th>%</th><th>Outcome</th><th>Team pts</th><th>Imposter pts</th></tr></thead><tbody>'+
       rows.map(function(r,i){ return '<tr><td class="rank">'+(i+1)+'</td><td class="name">'+esc(r.name)+'</td><td>'+r.correct+' / '+N+'</td><td>'+r.pct+'%</td>'+
         '<td><span class="pill '+r.band.k+'">'+r.band.label+'</span></td><td>+'+r.band.team+'</td><td>+'+r.band.imp+'</td></tr>'; }).join("")+
       '</tbody></table></div><p class="footnote">Above 60% keeps founder control · 40–59% is a diluted board, points split · Below 40% is a hostile takeover and the imposters take it all</p>';
@@ -746,7 +770,7 @@ function renderFinal(){
     $("finalHead").hidden=false;
     var mine=rows.filter(function(r){return r.id===teamId})[0]||rows[0];
     $("finalBody").innerHTML='<div class="center"><div class="tag">'+esc(mine.name)+'</div>'+
-      '<div class="big">'+mine.correct+' / '+N+' safe calls</div>'+
+      '<div class="big">'+mine.correct+' / '+N+' correct</div>'+
       '<div class="code" style="font-size:clamp(30px,8vw,64px)">'+mine.pct+'%</div>'+
       '<span class="pill '+mine.band.k+'" style="font-size:15px;padding:8px 20px">'+mine.band.label+'</span>'+
       '<div class="note">+'+mine.band.team+' to your team · +'+mine.band.imp+' to the imposters</div></div>';
