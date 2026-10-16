@@ -304,7 +304,7 @@ var ANSWER=LS.get("m_ans")||"";
 var myId=null,myTeam=null,myName=null;
 
 function $(id){return document.getElementById(id)}
-var SCREENS=["scSetup","scChoose","scCreate","scJoin","scTeam","scRole","scLobby","scAssigned"];
+var SCREENS=["scSetup","scChoose","scCreate","scJoin","scTeam","scSubmit","scRole","scLobby","scAssigned"];
 function show(id){ SCREENS.forEach(function(s){ $(s).hidden=(s!==id); }); }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function rand(n){var s="";for(var i=0;i<n;i++)s+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return s}
@@ -513,6 +513,7 @@ function renderPlayer(){
   myTeam=me.t;
   var tt=D.teams[myTeam]||{};
   if(phase()==="submit"&&tt.lead===myId){ renderSubmit(tt); return; }
+  if(phase()!=="submit") resetSubKey();
   if((phase()==="assigned"||phase()==="submit"||phase()==="reveal")&&mine){
     var c=mine.c||crisisNo();
     if(c!==seenCrisis){ seenCrisis=c; coverOpen=false; }   /* a new crisis hides the card again */
@@ -545,9 +546,13 @@ function renderPlayer(){
   };
 }
 
+var subKey="";
 function renderSubmit(t){
-  show("scSubmit"); SCREENS.forEach(function(){});
+  show("scSubmit");
   var chosen=(D.answers[myTeam]||{})[ckey()]||null;
+  var k=[crisisNo(),chosen].join("|");
+  if(k===subKey) return;        /* nothing changed; leave the buttons alone */
+  subKey=k;
   $("subTag").textContent="Crisis "+crisisNo()+" · "+(t.name||"your team");
   var box=$("subOpts"); box.innerHTML="";
   OPTIONS.forEach(function(o){
@@ -555,7 +560,7 @@ function renderSubmit(t){
     b.type="button"; b.textContent=o; b.className=(chosen===o?"sel":"");
     b.onclick=function(){
       store.write("answers/"+myTeam+"/"+ckey(),o).then(function(){
-        D.answers[myTeam]=D.answers[myTeam]||{}; D.answers[myTeam][ckey()]=o; renderSubmit(t);
+        D.answers[myTeam]=D.answers[myTeam]||{}; D.answers[myTeam][ckey()]=o; resetSubKey(); renderSubmit(t);
       })["catch"](function(){ setConn(false,"Submission closed"); });
     };
     box.appendChild(b);
@@ -563,6 +568,7 @@ function renderSubmit(t){
   $("subDone").hidden=!chosen;
   if(chosen) $("subDone").textContent="Submitted: Option "+chosen;
 }
+function resetSubKey(){ subKey=""; }
 
 function renderRole(){
   show("scRole");
