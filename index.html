@@ -206,6 +206,11 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
         <input type="number" id="qSecs" min="15" max="600" value="120">
       </div>
     </div>
+    <div class="field">
+      <label for="answerKey">Answer key (host only)</label>
+      <input type="text" id="answerKey" placeholder="e.g. 222222222" autocomplete="off" spellcheck="false">
+      <p class="note" style="margin:6px 0 0">One digit per question: 1 if the first card is founder-safe, 2 if the second is. Stays on this laptop - it is never sent to players.</p>
+    </div>
     <div class="row">
       <button class="btn" id="btnSetup">Open host screen</button>
       <button class="btn ghost" id="btnDemo">Run a demo without a database</button>
@@ -278,28 +283,29 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
 (function(){
 "use strict";
 
-/* ---------------- content: 9 term sheets from the Round 2 deck ---------------- */
-/* "a" is always the predatory / dilutive card, "b" the founder-protective one.   */
-/* Sides are flipped per question at game start so the answer isn't a pattern.    */
+/* ---------------- content: the 9 term sheets ----------------
+   Only the two options live here. Which one is founder-safe is NOT in this
+   file and never reaches a player's device - the host screen holds the key
+   locally and publishes one answer at a time, at reveal.                  */
 var QUESTIONS=[
- {a:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."},
-  b:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."}},
- {a:{t:"$5M Valuation with 2 Board Seats",d:"Gives outside investors voting majority on future executive hiring."},
-  b:{t:"$4M Valuation with Observer Seats",d:"Lower valuation payout. Founders retain 100% board voting rights."}},
- {a:{t:"$3M Capital + Full Ratchet",d:"Severe downside risk. Down-rounds wipe out remaining founder equity."},
-  b:{t:"$2M Capital + Standard Terms",d:"Standard founder protection against predatory future equity adjustments."}},
- {a:{t:"15% ESOP Created Pre-Money",d:"Dilutes existing founders completely before new investor money enters."},
-  b:{t:"10% ESOP Shared Post-Money",d:"Splits talent pool dilution equally between founders and incoming investors."}},
- {a:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."},
-  b:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."}},
- {a:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."},
-  b:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."}},
- {a:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."},
-  b:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."}},
- {a:{t:"Founders Cash Out $250K Each",d:"Provides immediate personal financial security. Gives away 2 extra board observer seats."},
-  b:{t:"Reinvest All Capital into Startup",d:"Keeps governance clean and lean. Leaves founders with zero personal financial safety net."}},
- {a:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."},
-  b:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."}}
+ {o1:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."},
+  o2:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."}},
+ {o1:{t:"$5M Valuation with 2 Board Seats",d:"Gives outside investors voting majority on future executive hiring."},
+  o2:{t:"$4M Valuation with Observer Seats",d:"Lower valuation payout. Founders retain 100% board voting rights."}},
+ {o1:{t:"$3M Capital + Full Ratchet",d:"Severe downside risk. Down-rounds wipe out remaining founder equity."},
+  o2:{t:"$2M Capital + Standard Terms",d:"Standard founder protection against predatory future equity adjustments."}},
+ {o1:{t:"15% ESOP Created Pre-Money",d:"Dilutes existing founders completely before new investor money enters."},
+  o2:{t:"10% ESOP Shared Post-Money",d:"Splits talent pool dilution equally between founders and incoming investors."}},
+ {o1:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."},
+  o2:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."}},
+ {o1:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."},
+  o2:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."}},
+ {o1:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."},
+  o2:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."}},
+ {o1:{t:"Founders Cash Out $250K Each",d:"Provides immediate personal financial security. Gives away 2 extra board observer seats."},
+  o2:{t:"Reinvest All Capital into Startup",d:"Keeps governance clean and lean. Leaves founders with zero personal financial safety net."}},
+ {o1:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."},
+  o2:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."}}
 ];
 var N=QUESTIONS.length;
 
@@ -325,6 +331,14 @@ var ROOM=(params.get("r")||"").toUpperCase();
 var SECS=parseInt(params.get("s")||LS.get("hv_secs")||"120",10)||120;
 var teamId=null;        /* set from the signed-in identity, never chosen by the device */
 var teamName=null;
+
+/* The answer key never ships with the page. The host screen reads it from this
+   browser only; players have no copy of it, in source or in the database.
+   One character per question: "1" = first option is safe, "2" = second.      */
+var KEY=LS.get("hv_key")||"";
+function keyOk(k){ return typeof k==="string" && k.length===N && /^[12]+$/.test(k); }
+function safeSide(qi){ return KEY.charAt(qi)==="1" ? "a" : "b"; }   /* a = option 1, b = option 2 */
+function revealedSide(qi){ var r=room.reveal||{}; return r["q"+qi]||null; }
 
 function $(id){return document.getElementById(id)}
 function show(id){["scSetup","scJoin","scLobby","scWait","scQ","scFinal"].forEach(function(s){$(s).hidden=(s!==id)});}
@@ -430,18 +444,25 @@ function randCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<
 function openSetup(){
   show("scSetup"); $("roleTag").textContent="Host setup";
   $("dbUrl").value=DB; $("roomCode").value=ROOM||randCode(); $("qSecs").value=SECS;
+  $("answerKey").value=KEY;
   $("btnSetup").onclick=function(){
     var u=$("dbUrl").value.trim().replace(/\/+$/,"");
     if(!/^https:\/\/.+/i.test(u)){ $("setupErr").hidden=false; $("setupErr").textContent="Paste the full database URL, starting with https://"; return; }
     DB=u; DEMO=false; LS.set("hv_db",DB); LS.set("hv_demo","0");
     ROOM=($("roomCode").value.trim().toUpperCase()||randCode());
     SECS=Math.max(15,Math.min(600,parseInt($("qSecs").value,10)||120)); LS.set("hv_secs",String(SECS));
+    var k=$("answerKey").value.replace(/\s+/g,"");
+    if(!keyOk(k)){ $("setupErr").hidden=false;
+      $("setupErr").textContent="The answer key needs "+N+" digits, each 1 or 2 - one per question."; return; }
+    KEY=k; LS.set("hv_key",KEY);
     startHost();
   };
   $("btnDemo").onclick=function(){
     DEMO=true; LS.set("hv_demo","1");
     ROOM=($("roomCode").value.trim().toUpperCase()||randCode());
     SECS=Math.max(15,Math.min(600,parseInt($("qSecs").value,10)||120)); LS.set("hv_secs",String(SECS));
+    var k2=$("answerKey").value.replace(/\s+/g,"");
+    if(keyOk(k2)){ KEY=k2; LS.set("hv_key",KEY); }
     startHost();
   };
 }
@@ -488,6 +509,9 @@ function hostDenied(){
 }
 
 function startHost(){
+  if(!keyOk(KEY)){ openSetup(); $("roomCode").value=ROOM||randCode();
+    $("setupErr").hidden=false;
+    $("setupErr").textContent="Enter the answer key before hosting - this browser doesn't have it yet."; return; }
   isHost=true;
   document.body.classList.add("is-host"); document.body.classList.remove("is-team");
   LS.set("hv_room",ROOM);
@@ -502,7 +526,7 @@ function startHost(){
     store.write("state",{phase:"question",q:0,qkey:"q0",startedAt:now(),flip:flip,dur:SECS});
   };
   $("btnReset").onclick=function(){
-    store.patch({state:{phase:"lobby"},teams:null,answers:null})["catch"](function(){ setConn(false,"Reset failed"); });
+    store.patch({state:{phase:"lobby"},teams:null,answers:null,reveal:null,results:null})["catch"](function(){ setConn(false,"Reset failed"); });
   };
   /* Claim the room. The rules let this through only if nobody else holds it,
      or if this same identity already does - so a reload keeps you as host. */
@@ -604,23 +628,23 @@ function renderQuestion(st){
   show("scQ");
   var qi=st.q|0,q=QUESTIONS[qi],flip=(st.flip||[])[qi]?true:false;
   var left=flip?"b":"a",right=flip?"a":"b";
-  var mine=myAnswer(qi),over=expiredNow(st);
-  var key=[st.phase,qi,mine,isHost,over].join("|");
+  var mine=myAnswer(qi),over=expiredNow(st),rs=revealedSide(qi);
+  var key=[st.phase,qi,mine,isHost,over,rs].join("|");
   if(key!==renderKey){
     renderKey=key;
     $("qNum").textContent="Question "+(qi+1)+" of "+N;
     var pair=$("qPair");
     pair.innerHTML="";
-    pair.appendChild(optionEl(q[left],left,"y",st,qi,mine,over));
+    pair.appendChild(optionEl(left==="a"?q.o1:q.o2,left,"y",st,qi,mine,over,rs));
     var vs=document.createElement("div"); vs.className="vs"; vs.textContent="VS"; pair.appendChild(vs);
-    pair.appendChild(optionEl(q[right],right,"p",st,qi,mine,over));
+    pair.appendChild(optionEl(right==="a"?q.o1:q.o2,right,"p",st,qi,mine,over,rs));
     renderFoot(st,qi);
   } else if(isHost){
     renderFoot(st,qi);
   }
 }
 
-function optionEl(data,side,tone,st,qi,mine,over){
+function optionEl(data,side,tone,st,qi,mine,over,rs){
   var revealed=st.phase==="reveal",locked=revealed||over;
   var el;
   if(!isHost&&!locked){ el=document.createElement("button"); el.type="button";
@@ -633,9 +657,9 @@ function optionEl(data,side,tone,st,qi,mine,over){
   } else { el=document.createElement("div"); }
   el.className="opt "+tone;
   if(mine===side) el.className+=" chosen";
-  if(revealed&&side!=="b") el.className+=" dim";
+  if(rs&&side!==rs) el.className+=" dim";
   var h='';
-  if(revealed&&side==="b") h+='<span class="flag">Founder-safe</span>';
+  if(rs&&side===rs) h+='<span class="flag">Founder-safe</span>';
   h+='<div class="ot">'+esc(data.t)+'</div><div class="od">'+esc(data.d)+'</div>';
   if(!isHost) h+='<div class="pick">'+(mine===side?"Locked in":(locked?"":"Tap to choose"))+'</div>';
   el.innerHTML=h;
@@ -646,15 +670,17 @@ function renderFoot(st,qi){
   var foot=$("qFoot");
   if(!isHost){
     var mine=myAnswer(qi);
-    foot.innerHTML='<div class="note">'+(st.phase==="reveal"
-      ? (mine==="b"?"You protected the cap table on this one.":(mine?"The other card was the founder-safe one.":"No answer submitted."))
+    var rs2=revealedSide(qi);
+    foot.innerHTML='<div class="note">'+(rs2
+      ? (mine===rs2?"You protected the cap table on this one.":(mine?"The other card was the founder-safe one.":"No answer submitted."))
       : (expiredNow(st)
           ? (mine?"Time's up. Your answer is locked in.":"Time's up. No answer submitted for this one.")
           : (mine?"Answer submitted. Tap the other card to change it while the clock runs.":"Pick one before the clock runs out.")))+'</div>';
     return;
   }
   var t=teams(),ids=Object.keys(t),a=answers(),done=0,ca=0,cb=0;
-  ids.forEach(function(id){ var v=a[id]&&a[id]["q"+qi]; if(v){done++; if(v==="a")ca++; else cb++;} });
+  var rsf=revealedSide(qi);
+  ids.forEach(function(id){ var v=a[id]&&a[id]["q"+qi]; if(v){done++; if(v===rsf)cb++; else ca++;} });
   var h='<div class="teams" id="footTeams" style="justify-content:flex-start"></div>';
   if(st.phase==="reveal"){
     var tot=ca+cb||1;
@@ -670,25 +696,41 @@ function renderFoot(st,qi){
   foot.innerHTML=h;
   fillChips($("footTeams"),ids,t,function(id){ return a[id]&&a[id]["q"+qi]; });
   var rv=$("btnReveal");
-  if(rv) rv.onclick=function(){ store.write("state/phase","reveal"); };
+  if(rv) rv.onclick=function(){
+    var up={}; up["state/phase"]="reveal"; up["reveal/q"+qi]=safeSide(qi);
+    store.patch(up)["catch"](function(){ setConn(false,"Reveal failed"); });
+  };
   $("btnNext").onclick=function(){
-    if(qi+1>=N) store.write("state/phase","final");
+    if(qi+1>=N){
+      var res={},t2=teams(),a2=answers();
+      Object.keys(t2).forEach(function(id){
+        var m=a2[id]||{},c=0;
+        for(var i=0;i<N;i++){ if(m["q"+i]&&m["q"+i]===safeSide(i)) c++; }
+        res[id]={c:c};
+      });
+      store.patch({"results":res,"state/phase":"final"})["catch"](function(){ setConn(false,"Scoring failed"); });
+    }
     else { store.write("state",{phase:"question",q:qi+1,qkey:"q"+(qi+1),startedAt:now(),flip:st.flip,dur:st.dur||SECS}); }
   };
 }
 
+/* Scores come from what the host published - no device scores itself. */
 function scores(){
-  var t=teams(),a=answers();
+  var t=teams(),res=room.results||{};
   return Object.keys(t).map(function(id){
-    var mine=a[id]||{},c=0,ans=0;
-    for(var i=0;i<N;i++){ var v=mine["q"+i]; if(v){ans++; if(v==="b")c++;} }
+    var c=(res[id]&&res[id].c)|0;
     var p=Math.round(c/N*1000)/10,b=bandFor(p);
-    return {id:id,name:t[id].name,correct:c,answered:ans,pct:p,band:b};
+    return {id:id,name:t[id].name,correct:c,pct:p,band:b};
   }).sort(function(x,y){return y.correct-x.correct});
 }
 
 function renderFinal(){
   show("scFinal");
+  if(!isHost&&!room.results){
+    $("finalHead").hidden=false;
+    $("finalBody").innerHTML='<div class="center"><div class="big">Scores coming up</div><p class="note">The host is adding up the round.</p></div>';
+    $("finalFoot").innerHTML=""; renderKey=""; return;
+  }
   var rows=scores();
   if(!rows.length){ $("finalHead").hidden=false; $("finalBody").innerHTML='<p class="note">No teams joined this room.</p>'; $("finalFoot").innerHTML=""; renderKey=""; return; }
   if(isHost){
