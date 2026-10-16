@@ -368,8 +368,12 @@ function assignRoles(teams,players,crisis,past){
     ids.forEach(function(id){
       up["priv/"+id]= (id===mole) ? {role:"MOLE",target:target,t:t,c:crisis} : {role:"INNOCENT",t:t,c:crisis};
     });
-    if(!fresh.length) up["priv/_past/"+t]=null;      /* everyone has had a turn - start the cycle again */
-    up["priv/_past/"+t+"/"+mole]=true;
+    /* Write the whole history node in one go. Writing the parent AND a child in
+       the same update is rejected outright by the database, which used to make
+       the entire assignment fail once every member had had a turn.          */
+    var hist={}; if(fresh.length){ Object.keys(seen).forEach(function(k){ hist[k]=true; }); }
+    hist[mole]=true;
+    up["priv/_past/"+t]=hist;
   });
   up["pub/phase"]="assigned";
   up["pub/crisis"]=crisis;
