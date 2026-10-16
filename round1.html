@@ -37,7 +37,7 @@ button{font:inherit;cursor:pointer}
 .panel p{margin:0 0 14px;line-height:1.55;color:#5B4433}
 label{display:block;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-radius:14px;background:#FFFDF8;font:inherit;color:var(--ink)}
-#teamIdIn{text-transform:uppercase;letter-spacing:.18em;font-family:var(--display);font-size:22px;text-align:center}
+#roomIn,#teamIdIn{text-transform:uppercase;letter-spacing:.18em;font-family:var(--display);font-size:22px;text-align:center}
 .field{margin-bottom:16px}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 
@@ -147,6 +147,18 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
     </div>
     <button class="btn" id="btnSetup">Open host screen</button>
     <p class="err" id="setupErr" hidden></p>
+  </section>
+
+  <!-- player: which room? (only when the link had no code) -->
+  <section id="scRoom" class="panel" hidden>
+    <h2>Enter the room code</h2>
+    <p>It's the four characters on the main screen at the front.</p>
+    <div class="field">
+      <label for="roomIn">Room code</label>
+      <input type="text" id="roomIn" maxlength="6" placeholder="----" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="btn wide" id="btnRoomGo">Continue</button>
+    <p class="err" id="roomErr" hidden></p>
   </section>
 
   <!-- player: create or join -->
@@ -304,7 +316,7 @@ var ANSWER=LS.get("m_ans")||"";
 var myId=null,myTeam=null,myName=null;
 
 function $(id){return document.getElementById(id)}
-var SCREENS=["scSetup","scChoose","scCreate","scJoin","scTeam","scSubmit","scRole","scLobby","scAssigned"];
+var SCREENS=["scSetup","scRoom","scChoose","scCreate","scJoin","scTeam","scSubmit","scRole","scLobby","scAssigned"];
 function show(id){ SCREENS.forEach(function(s){ $(s).hidden=(s!==id); }); }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function rand(n){var s="";for(var i=0;i<n;i++)s+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return s}
@@ -429,7 +441,7 @@ function startHost(){
   if(!/host/i.test(location.hash)) location.hash="host";
   $("roleTag").textContent="Host · Room "+ROOM;
   $("lobbyCode").textContent=ROOM;
-  $("lobbyLink").innerHTML='Can’t scan? Open <b>'+esc((location.host+location.pathname).replace(/\/$/,""))+'</b>';
+  $("lobbyLink").innerHTML='Can’t scan? Open <b>'+esc((location.host+location.pathname).replace(/\/$/,""))+'</b> and enter code <b>'+esc(ROOM)+'</b>';
   var qrHost=$("qr"); qrHost.innerHTML="";
   if(window.QRCode){ try{ new QRCode(qrHost,{text:playerLink(),width:190,height:190,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
   store.write("meta",{hostUid:AUTH.uid,at:Date.now()}).then(function(){
@@ -439,6 +451,22 @@ function startHost(){
 }
 
 /* ---------- player: choose ---------- */
+function openRoom(){
+  show("scRoom"); $("roleTag").textContent="Player"; $("roomErr").hidden=true;
+  $("btnRoomGo").onclick=function(){
+    var c=$("roomIn").value.trim().toUpperCase();
+    if(!c){ $("roomErr").hidden=false; $("roomErr").textContent="Enter the room code shown at the front."; return; }
+    ROOM=c;
+    store.read("meta").then(function(m){
+      if(!m||!m.hostUid){ ROOM=""; $("roomErr").hidden=false;
+        $("roomErr").textContent="No room with code "+c+". Check the screen at the front."; return; }
+      try{ history.replaceState(null,"",location.pathname+"?r="+encodeURIComponent(ROOM)); }catch(e){}
+      myTeam=LS.get("m_t_"+ROOM); myName=LS.get("m_n_"+ROOM);
+      if(myTeam){ setConn(true); loop(); } else openChoose();
+    })["catch"](function(){ ROOM=""; $("roomErr").hidden=false;
+      $("roomErr").textContent="Could not reach that room. Check your internet and try again."; });
+  };
+}
 function openChoose(){ show("scChoose"); $("roleTag").textContent="Player"; bindChoose(); }
 function bindChoose(){
   $("btnGoCreate").onclick=function(){ show("scCreate"); $("createErr").hidden=true; };
@@ -740,7 +768,7 @@ function confirmish(msg){
 bindCreate(); bindJoin();
 authReady().then(function(){
   if(isHost){ if(ROOM&&OPTIONS.indexOf(ANSWER)>=0) startHost(); else openSetup(); return; }
-  if(!ROOM){ openChoose(); return; }
+  if(!ROOM){ openRoom(); return; }
   myTeam=LS.get("m_t_"+ROOM); myName=LS.get("m_n_"+ROOM);
   if(myTeam){ setConn(true); loop(); } else openChoose();
 })["catch"](function(e){
