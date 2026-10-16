@@ -150,10 +150,12 @@ td.name{font-weight:800;white-space:normal}
 .is-team .stage{gap:12px}
 .is-team .qnum{font-size:15px}
 .is-team .timer{font-size:32px}
-/* team view always stacks and fills the screen, whatever width the browser claims */
-.is-team .pair{display:flex;flex-direction:column;flex:1;gap:12px}
+/* team view always stacks; cards size to their text, no stretched dead space */
+.is-team .pair{display:flex;flex-direction:column;flex:0 0 auto;gap:12px}
 .is-team .vs{display:none}
-.is-team .opt{flex:1;min-height:110px;padding:18px;border-radius:20px;justify-content:flex-start}
+.is-team .opt{flex:0 0 auto;min-height:0;padding:20px;border-radius:20px;justify-content:flex-start;gap:8px}
+.is-team .opt .pick{margin-top:6px}
+.is-team .stage{flex:0 1 auto}
 .is-team .opt .ot{font-size:clamp(21px,5.4vw,30px)}
 .is-team .opt .od{font-size:clamp(14px,3.5vw,18px);line-height:1.45}
 .is-team .opt .pick{font-size:12px;letter-spacing:.12em}
@@ -168,6 +170,12 @@ td.name{font-weight:800;white-space:normal}
 @media (max-width:640px){
   .is-team .wrap{padding-block:12px;gap:12px}
 }
+
+.chipedit{font:inherit;font-weight:800;font-size:14px;padding:6px 12px;border-radius:999px;
+  border:2px solid var(--plum);background:#fff;color:var(--plum-deep);max-width:190px;min-width:120px}
+button.chip{cursor:pointer;border:none;font:inherit;font-weight:800}
+button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
+.is-host .chipedit{font-size:clamp(14px,1.05vw,19px);padding:7px 16px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -427,7 +435,42 @@ function loop(){
 }
 
 /* ---------------- rendering ---------------- */
-var renderKey="",lastOver=null;
+var renderKey="",lastOver=null,renamingId=null,claimDone=false;
+
+function commitRename(id,val){
+  var name=(val||"").trim().slice(0,28);
+  renamingId=null;
+  var cur=teams()[id];
+  if(!name||!cur||name===cur.name){ render(); return; }
+  cur.name=name;                                  /* optimistic, so the chip doesn't flicker back */
+  store.write("teams/"+id+"/name",name)["catch"](function(){ setConn(false,"Rename failed"); });
+  render();
+}
+
+/* one chip; host can click it to rename, nobody else can */
+function teamChip(id,name,done){
+  if(isHost&&renamingId===id){
+    var inp=document.createElement("input");
+    inp.type="text"; inp.className="chipedit"; inp.value=name; inp.maxLength=28;
+    inp.onkeydown=function(e){
+      if(e.key==="Enter"){ e.preventDefault(); commitRename(id,inp.value); }
+      else if(e.key==="Escape"){ e.preventDefault(); renamingId=null; render(); }
+    };
+    inp.onblur=function(){ if(renamingId===id) commitRename(id,inp.value); };
+    setTimeout(function(){ inp.focus(); inp.select(); },0);
+    return inp;
+  }
+  var el=document.createElement(isHost?"button":"span");
+  el.className="chip"+(done?" done":"");
+  el.textContent=name;
+  if(isHost){ el.type="button"; el.title="Click to rename this team";
+    el.onclick=function(){ renamingId=id; render(); }; }
+  return el;
+}
+function fillChips(box,ids,t,answeredFor){
+  box.innerHTML="";
+  ids.forEach(function(id){ box.appendChild(teamChip(id,t[id].name,answeredFor?!!answeredFor(id):false)); });
+}
 function state(){ return room.state||{phase:"lobby"} }
 function teams(){ return room.teams||{} }
 function answers(){ return room.answers||{} }
@@ -436,7 +479,16 @@ function expiredNow(st){ if(st.phase!=="question") return false;
   var dur=(st.dur||SECS)*1000; return (Date.now()-(st.startedAt||Date.now()))>=dur; }
 
 function render(){
+  var ae=document.activeElement;
+  if(renamingId&&ae&&ae.className==="chipedit") return;   /* someone is mid-typing */
   var st=state();
+  if(!isHost&&teamName){
+    var mine=teams()[teamId];
+    if(mine&&mine.name){                                   /* host renamed us: adopt it */
+      claimDone=true;
+      if(mine.name!==teamName){ teamName=mine.name; LS.set("hv_name_"+ROOM,teamName); }
+    } else if(!claimDone){ claimDone=true; store.write("teams/"+teamId,{name:teamName,at:Date.now()}); }
+  }
   if(st.phase==="question"||st.phase==="reveal") renderQuestion(st);
   else if(st.phase==="final") renderFinal();
   else renderLobby();
@@ -446,7 +498,7 @@ function renderLobby(){
   if(isHost){
     show("scLobby");
     var t=teams(),ids=Object.keys(t),box=$("lobbyTeams");
-    box.innerHTML=ids.map(function(id){return '<span class="chip">'+esc(t[id].name)+'</span>'}).join("");
+    fillChips(box,ids,t,null);
     $("lobbyCount").textContent=ids.length?(ids.length+(ids.length===1?" team joined.":" teams joined.")):"No teams yet. Teams scan the code to join.";
     $("btnStart").disabled=ids.length===0;
   } else {
@@ -507,10 +559,7 @@ function renderFoot(st,qi){
   }
   var t=teams(),ids=Object.keys(t),a=answers(),done=0,ca=0,cb=0;
   ids.forEach(function(id){ var v=a[id]&&a[id]["q"+qi]; if(v){done++; if(v==="a")ca++; else cb++;} });
-  var h='<div class="teams" style="justify-content:flex-start">'+ids.map(function(id){
-      var v=a[id]&&a[id]["q"+qi];
-      return '<span class="chip'+(v?" done":"")+'">'+esc(t[id].name)+'</span>';
-    }).join("")+'</div>';
+  var h='<div class="teams" id="footTeams" style="justify-content:flex-start"></div>';
   if(st.phase==="reveal"){
     var tot=ca+cb||1;
     h+='<div class="tally" style="flex:1 1 260px"><span>Votes</span><span class="tallybar">'+
@@ -523,6 +572,7 @@ function renderFoot(st,qi){
   if(st.phase==="question") h+='<button class="btn alt sm" id="btnReveal">Reveal answer</button>';
   h+='<button class="btn sm" id="btnNext">'+(qi+1>=N?"Final scores":"Next question")+'</button></div>';
   foot.innerHTML=h;
+  fillChips($("footTeams"),ids,t,function(id){ return a[id]&&a[id]["q"+qi]; });
   var rv=$("btnReveal");
   if(rv) rv.onclick=function(){ store.write("state/phase","reveal"); };
   $("btnNext").onclick=function(){
@@ -537,7 +587,7 @@ function scores(){
     var mine=a[id]||{},c=0,ans=0;
     for(var i=0;i<N;i++){ var v=mine["q"+i]; if(v){ans++; if(v==="b")c++;} }
     var p=Math.round(c/N*1000)/10,b=bandFor(p);
-    return {name:t[id].name,correct:c,answered:ans,pct:p,band:b};
+    return {id:id,name:t[id].name,correct:c,answered:ans,pct:p,band:b};
   }).sort(function(x,y){return y.correct-x.correct});
 }
 
@@ -556,9 +606,7 @@ function renderFinal(){
     $("btnBack").onclick=function(){ store.write("state",{phase:"lobby"}); };
   } else {
     $("finalHead").hidden=false;
-    var me=null,t=teams();
-    Object.keys(t).forEach(function(id){ if(id===teamId) me=t[id].name; });
-    var mine=rows.filter(function(r){return r.name===me})[0]||rows[0];
+    var mine=rows.filter(function(r){return r.id===teamId})[0]||rows[0];
     $("finalBody").innerHTML='<div class="center"><div class="tag">'+esc(mine.name)+'</div>'+
       '<div class="big">'+mine.correct+' / '+N+' safe calls</div>'+
       '<div class="code" style="font-size:clamp(30px,8vw,64px)">'+mine.pct+'%</div>'+
