@@ -312,6 +312,10 @@ function bandFor(p){
 /* ---------------- identity / routing ---------------- */
 var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
         set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+/* Firebase Web API key - safe to ship, it only identifies the project.
+   Firebase console > Project settings > General > Web API Key           */
+var API_KEY="AIzaSyBWZg-zXIPJuPoaLHwYgUEgARytbkA8XGs";
+
 var params=new URLSearchParams(location.search);
 var isHost=/host/i.test(location.hash);
 var DEFAULT_DB="https://herventure-8da33-default-rtdb.asia-southeast1.firebasedatabase.app";
@@ -319,18 +323,56 @@ var DB=(params.get("db")||LS.get("hv_db")||DEFAULT_DB).replace(/\/+$/,"");
 var DEMO=params.get("demo")==="1"||LS.get("hv_demo")==="1";
 var ROOM=(params.get("r")||"").toUpperCase();
 var SECS=parseInt(params.get("s")||LS.get("hv_secs")||"120",10)||120;
-var teamId=LS.get("hv_tid"); if(!teamId){teamId="t"+Math.random().toString(36).slice(2,9);LS.set("hv_tid",teamId);}
+var teamId=null;        /* set from the signed-in identity, never chosen by the device */
 var teamName=null;
 
 function $(id){return document.getElementById(id)}
 function show(id){["scSetup","scJoin","scLobby","scWait","scQ","scFinal"].forEach(function(s){$(s).hidden=(s!==id)});}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 
+/* ---------------- identity ----------------
+   Every device signs in anonymously: no login for the user, but the database
+   now knows who is who, so the rules can tell the host from a participant. */
+var AUTH={token:null,uid:null,exp:0};
+
+function authStore(idToken,refreshToken,expiresIn,uid){
+  AUTH.token=idToken; AUTH.uid=uid;
+  AUTH.exp=Date.now()+(parseInt(expiresIn,10)||3600)*1000-300000;   /* renew 5 min early */
+  if(refreshToken) LS.set("hv_rt",refreshToken);
+  teamId=uid;
+  return uid;
+}
+function authJson(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }); return r.json(); }
+function authNew(){
+  return fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key="+API_KEY,
+    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({returnSecureToken:true})})
+    .then(authJson).then(function(j){ return authStore(j.idToken,j.refreshToken,j.expiresIn,j.localId); });
+}
+function authRenew(rt){
+  return fetch("https://securetoken.googleapis.com/v1/token?key="+API_KEY,
+    {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+     body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(rt)})
+    .then(authJson).then(function(j){ return authStore(j.id_token,j.refresh_token,j.expires_in,j.user_id); });
+}
+/* Same device keeps the same identity across reloads, so the host stays the
+   host and a team keeps its answers. */
+function authReady(force){
+  if(DEMO){ if(!teamId){ teamId=LS.get("hv_tid")||("t"+Math.random().toString(36).slice(2,9)); LS.set("hv_tid",teamId); } return Promise.resolve(teamId); }
+  if(!force&&AUTH.token&&Date.now()<AUTH.exp) return Promise.resolve(AUTH.uid);
+  var rt=LS.get("hv_rt");
+  if(rt) return authRenew(rt)["catch"](function(){ return authNew(); });
+  return authNew();
+}
+
 /* ---------------- storage adapter ---------------- */
 var store={
   read:function(){
     if(DEMO){ try{return Promise.resolve(JSON.parse(LS.get("hv_demo_"+ROOM)||"{}"))}catch(e){return Promise.resolve({})} }
-    return fetch(DB+"/rooms/"+ROOM+".json",{cache:"no-store"}).then(function(r){
+    var go=function(){ return fetch(DB+"/rooms/"+ROOM+".json?auth="+encodeURIComponent(AUTH.token||""),{cache:"no-store"}); };
+    return authReady().then(go).then(function(r){
+      if(r.status===401) return authReady(true).then(go);   /* token aged out mid-event */
+      return r;
+    }).then(function(r){
       if(!r.ok) throw new Error("HTTP "+r.status); syncClock(r); return r.json();
     }).then(function(v){return v||{}});
   },
@@ -343,9 +385,24 @@ var store={
       LS.set("hv_demo_"+ROOM,JSON.stringify(room));
       return Promise.resolve();
     }
-    var url=DB+"/rooms/"+ROOM+(sub?"/"+sub:"")+".json";
-    return fetch(url,{method:"PUT",body:JSON.stringify(val)})
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); });
+    return store.send("PUT",sub,val);
+  },
+  /* one request, several paths - the rules check each path on its own */
+  patch:function(obj){
+    if(DEMO){ var ks=Object.keys(obj),ch=Promise.resolve();
+      ks.forEach(function(k){ ch=ch.then(function(){ return store.write(k,obj[k]); }); }); return ch; }
+    return store.send("PATCH","",obj);
+  },
+  send:function(method,sub,val){
+    var url=function(){ return DB+"/rooms/"+ROOM+(sub?"/"+sub:"")+".json?auth="+encodeURIComponent(AUTH.token||""); };
+    var go=function(){ return fetch(url(),{method:method,body:JSON.stringify(val)}); };
+    return authReady().then(go).then(function(r){
+      if(r.status===401) return authReady(true).then(go);
+      return r;
+    }).then(function(r){
+      if(r.status===401||r.status===403){ var e=new Error("denied"); e.denied=true; throw e; }
+      if(!r.ok) throw new Error("HTTP "+r.status);
+    });
   }
 };
 
@@ -394,6 +451,9 @@ function openJoin(){
   show("scJoin"); $("roleTag").textContent="Team";
   $("joinCodeField").hidden=!!ROOM;
   if(!ROOM) $("joinCode").value="";
+  bindJoin();
+}
+function bindJoin(){
   $("btnJoin").onclick=function(){
     var nm=$("teamName").value.trim();
     if(!ROOM) ROOM=$("joinCode").value.trim().toUpperCase();
@@ -402,8 +462,11 @@ function openJoin(){
     teamName=nm; LS.set("hv_name_"+ROOM,nm);
     store.write("teams/"+teamId,{name:nm,at:Date.now()}).then(function(){
       setConn(true); loop();
-    })["catch"](function(){
-      $("joinErr").hidden=false; $("joinErr").textContent="Could not reach the room. Check the code and your internet, then try again.";
+    })["catch"](function(e){
+      $("joinErr").hidden=false;
+      $("joinErr").textContent=(e&&e.denied)
+        ? "That room is not accepting teams right now."
+        : "Could not reach the room. Check the code and your internet, then try again.";
     });
   };
 }
@@ -414,6 +477,16 @@ function teamLink(){
   var q="?r="+encodeURIComponent(ROOM)+(DEMO?"&demo=1":(DB===DEFAULT_DB?"":"&db="+encodeURIComponent(DB)));
   return base+q;
 }
+function hostDenied(){
+  show("scJoin");
+  $("roleTag").textContent="Not the host";
+  $("scJoin").querySelector("h2").textContent="This room is hosted on another device";
+  $("scJoin").querySelector("p").textContent="Only the screen that created room "+ROOM+" can run it. Join as a team instead.";
+  $("joinCodeField").hidden=true;
+  isHost=false; document.body.classList.remove("is-host"); document.body.classList.add("is-team");
+  bindJoin();
+}
+
 function startHost(){
   isHost=true;
   document.body.classList.add("is-host"); document.body.classList.remove("is-team");
@@ -426,12 +499,18 @@ function startHost(){
   if(window.QRCode){ try{ new QRCode(qrHost,{text:teamLink(),width:206,height:206,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
   $("btnStart").onclick=function(){
     var flip=[]; for(var i=0;i<N;i++) flip.push(Math.random()<0.5);
-    store.write("state",{phase:"question",q:0,startedAt:now(),flip:flip,dur:SECS});
+    store.write("state",{phase:"question",q:0,qkey:"q0",startedAt:now(),flip:flip,dur:SECS});
   };
   $("btnReset").onclick=function(){
-    store.write("", {state:{phase:"lobby"},teams:null,answers:null});
+    store.patch({state:{phase:"lobby"},teams:null,answers:null})["catch"](function(){ setConn(false,"Reset failed"); });
   };
-  setConn(true); loop();
+  /* Claim the room. The rules let this through only if nobody else holds it,
+     or if this same identity already does - so a reload keeps you as host. */
+  store.write("meta",{hostUid:AUTH.uid||teamId,at:Date.now()}).then(function(){
+    setConn(true); loop();
+  })["catch"](function(e){
+    if(e&&e.denied) hostDenied(); else setConn(false,"Reconnecting");
+  });
 }
 
 /* ---------------- polling loop ---------------- */
@@ -545,7 +624,12 @@ function optionEl(data,side,tone,st,qi,mine,over){
   var revealed=st.phase==="reveal",locked=revealed||over;
   var el;
   if(!isHost&&!locked){ el=document.createElement("button"); el.type="button";
-    el.onclick=function(){ store.write("answers/"+teamId+"/q"+qi,side).then(function(){ room.answers=room.answers||{}; room.answers[teamId]=room.answers[teamId]||{}; room.answers[teamId]["q"+qi]=side; render(); }); };
+    el.onclick=function(){
+      store.write("answers/"+teamId+"/q"+qi,side).then(function(){
+        room.answers=room.answers||{}; room.answers[teamId]=room.answers[teamId]||{};
+        room.answers[teamId]["q"+qi]=side; render();
+      })["catch"](function(){ setConn(false,"Answer not saved - tap again"); });
+    };
   } else { el=document.createElement("div"); }
   el.className="opt "+tone;
   if(mine===side) el.className+=" chosen";
@@ -589,7 +673,7 @@ function renderFoot(st,qi){
   if(rv) rv.onclick=function(){ store.write("state/phase","reveal"); };
   $("btnNext").onclick=function(){
     if(qi+1>=N) store.write("state/phase","final");
-    else { store.write("state",{phase:"question",q:qi+1,startedAt:now(),flip:st.flip,dur:st.dur||SECS}); }
+    else { store.write("state",{phase:"question",q:qi+1,qkey:"q"+(qi+1),startedAt:now(),flip:st.flip,dur:st.dur||SECS}); }
   };
 }
 
@@ -648,16 +732,25 @@ function tick(){
 
 /* ---------------- boot ---------------- */
 document.body.classList.add(isHost?"is-host":"is-team");
-if(isHost){
-  if((DB||DEMO)&&ROOM) startHost(); else openSetup();
-} else {
-  if(!DB&&!DEMO){ openSetup(); }
+function route(){
+  if(isHost){
+    if((DB||DEMO)&&ROOM) startHost(); else openSetup();
+  } else if(!DB&&!DEMO){ openSetup(); }
   else {
     teamName=ROOM?LS.get("hv_name_"+ROOM):null;
-    if(teamName){ setConn(true); store.write("teams/"+teamId,{name:teamName,at:Date.now()}); loop(); }
+    if(teamName){ setConn(true); loop(); }   /* render() re-claims the team entry */
     else openJoin();
   }
 }
+authReady().then(route)["catch"](function(e){
+  show("scJoin"); $("roleTag").textContent="Setup needed";
+  $("scJoin").querySelector("h2").textContent="Can't sign in to the database";
+  $("scJoin").querySelector("p").textContent=
+    (API_KEY.indexOf("PASTE")===0)
+      ? "The Firebase Web API key hasn't been filled in yet."
+      : "Anonymous sign-in may be switched off in the Firebase console. ("+(e&&e.message||"unknown")+")";
+  $("teamName").hidden=true; $("btnJoin").hidden=true; $("joinCodeField").hidden=true;
+});
 })();
 </script>
 </body>
