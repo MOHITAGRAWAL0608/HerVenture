@@ -103,6 +103,8 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
 .mission{font-size:clamp(14px,3.8vw,17px);line-height:1.5;max-width:34ch}
 .cover{flex:1;min-height:58vh;border-radius:26px;border:3px dashed var(--line);background:var(--card);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;cursor:pointer}
+.clock{font-family:var(--display);font-size:clamp(26px,6vw,40px);color:var(--maroon);line-height:1}
+.opts button.dead{opacity:.45;cursor:not-allowed}
 .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:420px}
 .opts.names{grid-template-columns:1fr}
 .opts.names button{font-size:22px;padding:16px 12px}
@@ -229,7 +231,8 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
     <div class="center">
       <div class="tag" id="subTag"></div>
       <div class="big" id="subTitle">Your team's answer</div>
-      <p class="note" id="subHint">Tap the option your team decided on. You can change it until the host closes submissions.</p>
+      <p class="note" id="subHint">Tap the option your team decided on.</p>
+      <div class="clock" id="subClock"></div>
       <div class="opts" id="subOpts"></div>
       <p class="ok" id="subDone" hidden></p>
     </div>
@@ -285,6 +288,7 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
       <div class="row">
         <button class="btn alt sm" id="btnShowMoles">Reveal moles</button>
         <button class="btn sm" id="btnPhase">Open submissions</button>
+        <button class="btn ghost sm" id="btnExtend" hidden>+30s</button>
         <button class="btn sm" id="btnNextCrisis">Next crisis</button>
         <button class="btn ghost sm" id="btnReshuffle">Re-assign</button>
         <button class="btn ghost sm" id="btnBack">Edit teams</button>
@@ -361,7 +365,7 @@ var store={
   read:function(sub){
     var go=function(){ return fetch(url(sub),{cache:"no-store"}); };
     return authReady().then(go).then(function(r){ if(r.status===401) return authReady(true).then(go); return r; })
-      .then(guard).then(function(r){ return r.json(); });
+      .then(guard).then(function(r){ syncClock(r); return r.json(); });
   },
   send:function(m,sub,val){
     var go=function(){ return fetch(url(sub),{method:m,body:JSON.stringify(val)}); };
@@ -371,6 +375,15 @@ var store={
   write:function(sub,val){ return store.send("PUT",sub,val); },
   patch:function(obj){ return store.send("PATCH","",obj); }
 };
+
+var clockOffset=0;
+function now(){ return Date.now()+clockOffset; }
+function syncClock(res){
+  try{ var d=res.headers.get("date"); if(!d) return; var t=Date.parse(d);
+    if(!isNaN(t)) clockOffset=(t+500)-Date.now(); }catch(e){}
+}
+function subLeft(){ var e=(D.pub&&D.pub.subEnd)||0; return e?Math.max(0,e-now()):0; }
+function fmt(ms){ var s=Math.ceil(ms/1000); return s>=60?(Math.floor(s/60)+":"+(s%60<10?"0":"")+(s%60)):(s+"s"); }
 
 var connEl=$("conn"),connBad=false;
 function setConn(ok,msg){ connEl.hidden=false; connEl.textContent=msg||(ok?"Live":"Reconnecting");
@@ -412,7 +425,7 @@ function ckey(){ return "c"+crisisNo() }
 function keyFor(n){ return (D.priv&&D.priv._key&&D.priv._key["c"+n])||null }
 function answerOf(t,n){ return (D.answers&&D.answers[t]&&D.answers[t]["c"+n])||null }
 function caughtOf(t,n){ return !!(D.caught&&D.caught[t]&&D.caught[t]["c"+n]) }
-var PTS_CORRECT=100,PTS_CAUGHT=50;
+var PTS_CORRECT=100,PTS_CAUGHT=50,SUB_SECONDS=60;
 function membersOf(t){ return Object.keys(D.players).filter(function(id){ return D.players[id].t===t; }); }
 function moleOf(t,n){
   var ids=Object.keys(D.priv||{});
@@ -545,7 +558,7 @@ function bindJoin(){
 }
 
 /* ---------- loop ---------- */
-var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{},votes:{}},mine=null,pollTimer=null,showMoles=false,coverOpen=false,seenCrisis=0,phaseKey="";
+var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{},votes:{}},mine=null,pollTimer=null,tickTimer=null,lastOver=null,showMoles=false,coverOpen=false,seenCrisis=0,phaseKey="";
 function loop(){
   if(pollTimer) return;
   var pull=function(){
@@ -564,6 +577,18 @@ function loop(){
     })["catch"](function(){ setConn(false,"Reconnecting"); });
   };
   pull(); pollTimer=setInterval(pull,1600);
+  if(!tickTimer) tickTimer=setInterval(tick,250);
+}
+
+function tick(){
+  if(phase()!=="submit"){ lastOver=null; return; }
+  var over=!subLeft();
+  if(!isHost&&!$("scSubmit").hidden) $("subClock").textContent=over?"Time's up":fmt(subLeft())+" left";
+  if(isHost&&!$("scAssigned").hidden){
+    var el=$("assignedTag"),t=el.textContent;
+    el.textContent=t.replace(/\u00b7 [0-9:]+s? left|\u00b7 time up/,"\u00b7 "+(over?"time up":fmt(subLeft())+" left"));
+  }
+  if(over!==lastOver){ lastOver=over; render(); }   /* lock the buttons exactly on zero */
 }
 
 function render(){ isHost?renderHost():renderPlayer(); }
@@ -642,15 +667,18 @@ var subKey="";
 function renderSubmit(t){
   show("scSubmit");
   var chosen=(D.answers[myTeam]||{})[ckey()]||null;
-  var k=[crisisNo(),chosen].join("|");
-  if(k===subKey) return;        /* nothing changed; leave the buttons alone */
+  var over=!subLeft();
+  var k=[crisisNo(),chosen,over].join("|");
+  if(k===subKey){ $("subClock").textContent=over?"Time's up":fmt(subLeft())+" left"; return; }
   subKey=k;
   $("subTag").textContent="Crisis "+crisisNo()+" · "+(t.name||"your team");
   var box=$("subOpts"); box.innerHTML="";
   OPTIONS.forEach(function(o){
     var b=document.createElement("button");
-    b.type="button"; b.textContent=o; b.className=(chosen===o?"sel":"");
+    b.type="button"; b.textContent=o; b.className=(chosen===o?"sel":"")+(over?" dead":"");
+    b.disabled=over;
     b.onclick=function(){
+      if(over) return;
       store.write("answers/"+myTeam+"/"+ckey(),o).then(function(){
         D.answers[myTeam]=D.answers[myTeam]||{}; D.answers[myTeam][ckey()]=o; resetSubKey(); renderSubmit(t);
       })["catch"](function(){ setConn(false,"Submission closed"); });
@@ -658,7 +686,11 @@ function renderSubmit(t){
     box.appendChild(b);
   });
   $("subDone").hidden=!chosen;
-  if(chosen) $("subDone").textContent="Submitted: Option "+chosen;
+  if(chosen) $("subDone").textContent=(over?"Locked in: Option ":"Submitted: Option ")+chosen;
+  $("subHint").textContent=over
+    ? "Submissions are closed. Your team's answer is locked."
+    : "Tap the option your team decided on. You can change it until the clock runs out.";
+  $("subClock").textContent=over?"Time's up":fmt(subLeft())+" left";
 }
 function resetSubKey(){ subKey=""; }
 
@@ -731,13 +763,19 @@ function renderHost(){
     show("scAssigned");
     var ph=phase(),submitted=ids.filter(function(t){ return answerOf(t,crisisNo()); }).length;
     $("assignedTag").textContent="Crisis "+crisisNo()+" · correct answer "+(keyFor(crisisNo())||ANSWER)+" · "+ids.length+" teams"+
-      (ph==="submit"?(" · "+submitted+" of "+ids.length+" submitted"):"")+
+      (ph==="submit"?(" · "+submitted+" of "+ids.length+" submitted"+(subLeft()?(" · "+fmt(subLeft())+" left"):" · time up")):"")+
       (ph==="vote"?(" · voting"):"");
     $("btnPhase").hidden=(ph==="reveal");
     $("btnPhase").textContent=(ph==="assigned")?"Open submissions":(ph==="submit"?"Open Mole vote":"Close & show results");
     $("btnPhase").onclick=function(){
       var next=(ph==="assigned")?"submit":(ph==="submit"?"vote":"reveal");
-      store.patch({"pub/phase":next})["catch"](function(){ setConn(false,"Failed"); });
+      var up={"pub/phase":next};
+      if(next==="submit") up["pub/subEnd"]=now()+SUB_SECONDS*1000;   /* hard deadline */
+      store.patch(up)["catch"](function(){ setConn(false,"Failed"); });
+    };
+    $("btnExtend").hidden=(ph!=="submit");
+    $("btnExtend").onclick=function(){
+      store.write("pub/subEnd",Math.max(now(),(D.pub.subEnd||0))+30000)["catch"](function(){ setConn(false,"Failed"); });
     };
     var pk=crisisNo()+"|"+ph;
     if(pk!==phaseKey){ phaseKey=pk; showMoles=(ph==="reveal"); }   /* once per phase, then the host decides */
@@ -745,7 +783,11 @@ function renderHost(){
       ids.forEach(function(t){                      /* record the verdict once, host can still override */
         if(!(D.caught[t]&&D.caught[t][ckey()]!==undefined)){
           var tl=tallyOf(t,crisisNo());
-          if(tl.mole) store.write("caught/"+t+"/"+ckey(),tl.caught)["catch"](function(){});
+          if(tl.mole){
+            D.caught[t]=D.caught[t]||{}; D.caught[t][ckey()]=tl.caught;   /* keep our own copy in step,
+                 or the first tap on the badge just rewrites the same value and looks dead */
+            store.write("caught/"+t+"/"+ckey(),tl.caught)["catch"](function(){});
+          }
         }
       });
     }
@@ -778,7 +820,10 @@ function renderHost(){
         tg.textContent=caughtOf(t,crisisNo())?"Mole caught":"Mole escaped";
         tg.title="Tap to override the vote";
         tg.onclick=function(){
-          store.write("caught/"+t+"/"+ckey(),!caughtOf(t,crisisNo()))["catch"](function(){ setConn(false,"Failed"); });
+          var v=!caughtOf(t,crisisNo());
+          D.caught[t]=D.caught[t]||{}; D.caught[t][ckey()]=v;    /* flip straight away, don't wait for the poll */
+          render();
+          store.write("caught/"+t+"/"+ckey(),v)["catch"](function(){ setConn(false,"Failed"); });
         };
         var w=document.createElement("div"); w.style.marginTop="10px"; w.appendChild(tg); card.appendChild(w);
       }
