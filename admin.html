@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HerVenture Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --cream:#FBF1DD; --card:#FFFFFF; --ink:#3F0A24; --plum:#5B1A8C; --plum-deep:#43096B;
+  --maroon:#4E0D2A; --yellow:#F9C35C; --yellow-deep:#E9A72F; --lav:#C7ABE8; --lav-soft:#E6D9F7;
+  --rose:#F0C7C7; --red:#B0203A; --green:#2E6B33; --green-soft:#E7F3E2;
+  --line:#D9C9AE; --muted:#8A7560; --code:#2B1B33;
+  --display:"Fredoka",system-ui,sans-serif; --body:"Nunito",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--body);font-size:15px}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+.wrap{max-width:1200px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--display);font-size:clamp(20px,2.6vw,28px);margin:0;color:var(--maroon)}
+h1 em{font-style:normal;color:var(--plum)}
+h2{font-family:var(--display);font-size:19px;margin:0 0 10px;color:var(--maroon)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+label{display:block;font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+input,select,textarea{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#FFFDF8;color:var(--ink)}
+input#room{text-transform:uppercase;letter-spacing:.16em;font-family:var(--display);width:140px}
+textarea{font-family:var(--mono);font-size:13px;width:100%;min-height:120px;line-height:1.5}
+.btn{border:none;border-radius:999px;padding:10px 20px;font-family:var(--display);font-weight:600;font-size:15px;
+  background:var(--plum);color:#fff;box-shadow:0 3px 0 var(--plum-deep)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--plum-deep)}
+.btn.ghost{background:transparent;color:var(--plum);box-shadow:none;border:2px solid var(--lav)}
+.btn.danger{background:var(--red);box-shadow:0 3px 0 #7E1328}
+.btn.sm{padding:6px 14px;font-size:14px}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.panel{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px}
+.panel.warn{border-color:var(--yellow-deep);background:#FFFBF0}
+.pill{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:800}
+.pill.yes{background:var(--green-soft);color:var(--green)}
+.pill.no{background:var(--rose);color:#8E2020}
+.pill.info{background:var(--lav-soft);color:var(--plum-deep)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 10px}
+td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+td.k{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+td input{padding:6px 10px;width:100%;max-width:280px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.tablewrap{overflow-x:auto}
+.muted{color:var(--muted);font-size:13px;line-height:1.5}
+.err{color:#8E2020;font-weight:700}
+.ok{color:var(--green);font-weight:800}
+.raw{font-family:var(--mono);font-size:12.5px;background:var(--code);color:#F3E9DC;border-radius:14px;padding:14px;
+  overflow:auto;max-height:420px;line-height:1.55;white-space:pre}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.flash{position:fixed;right:16px;bottom:16px;background:var(--plum);color:#fff;padding:10px 18px;border-radius:999px;
+  font-weight:800;font-size:14px;box-shadow:0 6px 18px rgba(67,9,107,.25);z-index:20}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar" style="justify-content:space-between">
+    <h1>HerVenture <em>Control Room</em></h1>
+    <div class="row">
+      <span class="pill info" id="who">signing in…</span>
+      <label style="margin:0"><input type="checkbox" id="live" checked style="width:auto;padding:0"> live</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="bar">
+      <div>
+        <label for="round">Round</label>
+        <select id="round">
+          <option value="mole">Round 1 — Mole in the Boardroom</option>
+          <option value="rooms">Round 2 — This or That</option>
+        </select>
+      </div>
+      <div>
+        <label for="room">Room code</label>
+        <input id="room" maxlength="6" placeholder="----">
+      </div>
+      <button class="btn" id="load">Load</button>
+      <button class="btn ghost sm" id="refresh">Refresh now</button>
+      <span id="status" class="muted"></span>
+    </div>
+  </div>
+
+  <div id="body" hidden>
+    <div class="panel" id="summary" style="margin-bottom:16px"></div>
+    <div id="sections" class="grid" style="margin-bottom:16px"></div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Edit any value</h2>
+      <p class="muted">Path is relative to this room. Examples: <code>pub/phase</code>, <code>players/&lt;uid&gt;/name</code>,
+        <code>answers/&lt;teamId&gt;/c2</code>. Value is JSON — so <code>"B"</code> with quotes for text,
+        <code>true</code>, <code>120</code>, or <code>null</code> to delete.</p>
+      <div class="bar" style="margin-bottom:10px">
+        <div style="flex:1 1 260px"><label for="path">Path</label><input id="path" style="width:100%" placeholder="pub/phase"></div>
+      </div>
+      <label for="val">Value (JSON)</label>
+      <textarea id="val" spellcheck="false">"lobby"</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="put">Write value</button>
+        <button class="btn danger sm" id="del">Delete path</button>
+        <button class="btn ghost sm" id="peek">Read path</button>
+        <span id="editMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Everything stored</h2>
+      <p class="muted" id="rawNote"></p>
+      <div class="raw" id="raw">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var API_KEY="AIzaSyBWZg-zXIPJuPoaLHwYgUEgARytbkA8XGs";
+var DB="https://herventure-8da33-default-rtdb.asia-southeast1.firebasedatabase.app";
+var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+        set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+/* identity: the same anonymous sign-in the games use, so this page is "you" */
+var AUTH={token:null,uid:null,exp:0};
+function store(t,rt,exp,uid){ AUTH.token=t; AUTH.uid=uid; AUTH.exp=Date.now()+(parseInt(exp,10)||3600)*1000-300000;
+  if(rt) LS.set("hv_rt",rt); return uid; }
+function j(r){ if(!r.ok) return r.json().then(function(x){ throw new Error((x.error&&x.error.message)||("HTTP "+r.status)); }); return r.json(); }
+function authNew(){ return fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key="+API_KEY,
+  {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({returnSecureToken:true})})
+  .then(j).then(function(x){ return store(x.idToken,x.refreshToken,x.expiresIn,x.localId); }); }
+function authRenew(rt){ return fetch("https://securetoken.googleapis.com/v1/token?key="+API_KEY,
+  {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+   body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(rt)})
+  .then(j).then(function(x){ return store(x.id_token,x.refresh_token,x.expires_in,x.user_id); }); }
+function auth(force){
+  if(!force&&AUTH.token&&Date.now()<AUTH.exp) return Promise.resolve(AUTH.uid);
+  var rt=LS.get("hv_rt");
+  if(rt) return authRenew(rt)["catch"](authNew);
+  return authNew();
+}
+
+var ROOT="mole", ROOM="", DATA={}, timer=null;
+function url(sub){ return DB+"/"+ROOT+"/"+ROOM+(sub?"/"+sub:"")+".json?auth="+encodeURIComponent(AUTH.token||""); }
+function get(sub){
+  var go=function(){ return fetch(url(sub),{cache:"no-store"}); };
+  return auth().then(go).then(function(r){ if(r.status===401) return auth(true).then(go); return r; })
+    .then(function(r){ if(r.status===401||r.status===403){ var e=new Error("denied"); e.denied=true; throw e; }
+      if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+}
+function put(sub,val){
+  var go=function(){ return fetch(url(sub),{method:"PUT",body:JSON.stringify(val)}); };
+  return auth().then(go).then(function(r){ if(r.status===401) return auth(true).then(go); return r; })
+    .then(function(r){ if(r.status===401||r.status===403){ var e=new Error("denied"); e.denied=true; throw e; }
+      if(!r.ok) throw new Error("HTTP "+r.status); return true; });
+}
+function flash(msg,bad){
+  var d=document.createElement("div"); d.className="flash"; d.textContent=msg;
+  if(bad) d.style.background="var(--red)";
+  document.body.appendChild(d); setTimeout(function(){ d.remove(); },2600);
+}
+
+/* read every branch separately: some are host-only, and one refusal
+   shouldn't blank the whole page */
+function branches(){
+  return ROOT==="mole"
+    ? ["meta","pub","teams","players","priv","answers","votes","caught"]
+    : ["meta","state","teams","answers","reveal","results"];
+}
+function load(){
+  if(!ROOM) return;
+  var names=branches();
+  return Promise.all(names.map(function(n){
+    return get(n).then(function(v){ return {n:n,v:v}; })
+                 ["catch"](function(e){ return {n:n,denied:!!e.denied,err:e.message}; });
+  })).then(function(res){
+    DATA={}; res.forEach(function(r){ DATA[r.n]=r; });
+    render();
+  });
+}
+
+function isHost(){ var m=DATA.meta&&DATA.meta.v; return !!(m&&m.hostUid&&m.hostUid===AUTH.uid); }
+
+function render(){
+  $("body").hidden=false;
+  var host=isHost();
+  $("summary").innerHTML='<h2>Room '+esc(ROOM)+'</h2>'+
+    '<div class="row"><span class="pill '+(host?"yes":"no")+'">'+(host?"you host this room":"you do not host this room")+'</span>'+
+    (ROOT==="mole"
+      ? '<span class="pill info">phase '+esc((DATA.pub&&DATA.pub.v&&DATA.pub.v.phase)||"-")+'</span>'+
+        '<span class="pill info">crisis '+esc((DATA.pub&&DATA.pub.v&&DATA.pub.v.crisis)||1)+'</span>'
+      : '<span class="pill info">phase '+esc((DATA.state&&DATA.state.v&&DATA.state.v.phase)||"-")+'</span>'+
+        '<span class="pill info">question '+esc(((DATA.state&&DATA.state.v&&DATA.state.v.q)|0)+1)+'</span>')+
+    '</div>'+
+    (host?'':'<p class="muted" style="margin:10px 0 0">Editing is refused for rooms you do not host — that is the security working. '+
+      'Use the Firebase console if you must change this room.</p>');
+
+  var sec=$("sections"); sec.innerHTML="";
+  branches().forEach(function(n){
+    var d=DATA[n]; if(!d) return;
+    var box=document.createElement("div"); box.className="panel"+(d.denied?" warn":"");
+    var body;
+    if(d.denied) body='<p class="muted">Not readable with this identity'+(host?"":" (you are not the host)")+'.</p>';
+    else if(d.v==null) body='<p class="muted">empty</p>';
+    else if(typeof d.v!=="object") body=editRow(n,d.v);
+    else body='<div class="tablewrap"><table><tbody>'+rows(n,d.v)+'</tbody></table></div>';
+    box.innerHTML='<h2>'+n+'</h2>'+body;
+    sec.appendChild(box);
+  });
+  wireEdits();
+
+  var dump={}; branches().forEach(function(n){ var d=DATA[n]; dump[n]=d.denied?"<not readable>":d.v; });
+  $("raw").textContent=JSON.stringify(dump,null,2);
+  $("rawNote").textContent="Live copy of /"+ROOT+"/"+ROOM+". Host-only branches show as <not readable> unless you host this room.";
+}
+function editRow(path,val){
+  return '<div class="row"><input data-path="'+esc(path)+'" value="'+esc(String(val))+'">'+
+         '<button class="btn sm save" data-path="'+esc(path)+'">save</button></div>';
+}
+function rows(prefix,obj,depth){
+  depth=depth||0;
+  return Object.keys(obj).map(function(k){
+    var v=obj[k],path=prefix+"/"+k;
+    if(v!==null&&typeof v==="object")
+      return '<tr><td class="k">'+esc(k)+'</td><td><table><tbody>'+rows(path,v,depth+1)+'</tbody></table></td></tr>';
+    return '<tr><td class="k">'+esc(k)+'</td><td>'+
+      '<div class="row"><input data-path="'+esc(path)+'" value="'+esc(String(v))+'">'+
+      '<button class="btn sm save" data-path="'+esc(path)+'">save</button>'+
+      '<button class="btn ghost sm rm" data-path="'+esc(path)+'">del</button></div></td></tr>';
+  }).join("");
+}
+function parseLike(original,text){
+  if(typeof original==="number"&&text.trim()!==""&&!isNaN(Number(text))) return Number(text);
+  if(typeof original==="boolean"){ if(/^true$/i.test(text)) return true; if(/^false$/i.test(text)) return false; }
+  return text;
+}
+function wireEdits(){
+  Array.prototype.forEach.call(document.querySelectorAll(".save"),function(b){
+    b.onclick=function(){
+      var p=b.getAttribute("data-path"),inp=document.querySelector('input[data-path="'+p.replace(/"/g,'\\"')+'"]');
+      var cur=at(p), val=parseLike(cur,inp.value);
+      put(p,val).then(function(){ flash("saved "+p); load(); })
+        ["catch"](function(e){ flash(e.denied?"refused: you do not host this room":("failed: "+e.message),true); });
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".rm"),function(b){
+    b.onclick=function(){
+      var p=b.getAttribute("data-path");
+      if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="sure?";
+        setTimeout(function(){ b.dataset.armed="0"; b.textContent="del"; },3000); return; }
+      put(p,null).then(function(){ flash("deleted "+p); load(); })
+        ["catch"](function(e){ flash(e.denied?"refused: you do not host this room":("failed: "+e.message),true); });
+    };
+  });
+}
+function at(path){
+  var parts=path.split("/").filter(Boolean),d=DATA[parts[0]];
+  var n=d?d.v:null;
+  for(var i=1;i<parts.length;i++){ if(n==null||typeof n!=="object") return null; n=n[parts[i]]; }
+  return n===undefined?null:n;
+}
+
+/* ---- controls ---- */
+$("load").onclick=function(){
+  ROOT=$("round").value; ROOM=$("room").value.trim().toUpperCase();
+  if(!ROOM){ $("status").textContent="Enter a room code."; return; }
+  LS.set("adm_root",ROOT); LS.set("adm_room",ROOM);
+  $("status").textContent="loading…";
+  load().then(function(){ $("status").textContent=""; })
+    ["catch"](function(e){ $("status").innerHTML='<span class="err">'+esc(e.message)+'</span>'; });
+};
+$("refresh").onclick=function(){ load(); };
+$("live").onchange=function(){ setLive($("live").checked); };
+function setLive(on){
+  if(timer){ clearInterval(timer); timer=null; }
+  if(on) timer=setInterval(function(){ if(ROOM) load(); },3000);
+}
+$("peek").onclick=function(){
+  var p=$("path").value.trim();
+  if(!p) return;
+  get(p).then(function(v){ $("val").value=JSON.stringify(v,null,2); $("editMsg").innerHTML='<span class="ok">read ok</span>'; })
+    ["catch"](function(e){ $("editMsg").innerHTML='<span class="err">'+(e.denied?"not readable with this identity":esc(e.message))+'</span>'; });
+};
+$("put").onclick=function(){
+  var p=$("path").value.trim(); if(!p){ $("editMsg").innerHTML='<span class="err">path required</span>'; return; }
+  var v; try{ v=JSON.parse($("val").value); }
+  catch(e){ $("editMsg").innerHTML='<span class="err">value must be valid JSON (text needs quotes)</span>'; return; }
+  put(p,v).then(function(){ $("editMsg").innerHTML='<span class="ok">written</span>'; flash("saved "+p); load(); })
+    ["catch"](function(e){ $("editMsg").innerHTML='<span class="err">'+(e.denied?"refused by the database rules":esc(e.message))+'</span>'; });
+};
+$("del").onclick=function(){
+  var p=$("path").value.trim(); if(!p) return;
+  var b=$("del");
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="click again to delete";
+    setTimeout(function(){ b.dataset.armed="0"; b.textContent="Delete path"; },3000); return; }
+  b.dataset.armed="0"; b.textContent="Delete path";
+  put(p,null).then(function(){ $("editMsg").innerHTML='<span class="ok">deleted</span>'; flash("deleted "+p); load(); })
+    ["catch"](function(e){ $("editMsg").innerHTML='<span class="err">'+(e.denied?"refused by the database rules":esc(e.message))+'</span>'; });
+};
+
+auth().then(function(uid){
+  $("who").textContent="identity "+uid.slice(0,10)+"…";
+  var r=LS.get("adm_root"),m=LS.get("adm_room");
+  if(r) $("round").value=r;
+  if(m){ $("room").value=m; $("load").click(); }
+  setLive(true);
+})["catch"](function(e){
+  $("who").textContent="sign-in failed"; $("status").innerHTML='<span class="err">'+esc(e.message)+'</span>';
+});
+})();
+</script>
+</body>
+</html>
