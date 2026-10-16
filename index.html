@@ -208,7 +208,7 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
     </div>
     <div class="field">
       <label for="answerKey">Answer key (host only)</label>
-      <input type="text" id="answerKey" placeholder="e.g. 222222222" autocomplete="off" spellcheck="false">
+      <input type="text" id="answerKey" placeholder="one digit per question" autocomplete="off" spellcheck="false">
       <p class="note" style="margin:6px 0 0">One digit per question: 1 if the first card is founder-safe, 2 if the second is. Stays on this laptop - it is never sent to players.</p>
     </div>
     <div class="row">
@@ -288,24 +288,24 @@ button.chip:hover{box-shadow:0 0 0 2px var(--plum)}
    file and never reaches a player's device - the host screen holds the key
    locally and publishes one answer at a time, at reveal.                  */
 var QUESTIONS=[
- {o1:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."},
-  o2:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."}},
+ {o1:{t:"Take $500K for 5%",d:"Slower growth trajectory. Preserves 95% founder cap table autonomy."},
+  o2:{t:"Take $1.5M for 20%",d:"Unlocks immediate national marketing campaign. 20% dilution instantly."}},
  {o1:{t:"$5M Valuation with 2 Board Seats",d:"Gives outside investors voting majority on future executive hiring."},
   o2:{t:"$4M Valuation with Observer Seats",d:"Lower valuation payout. Founders retain 100% board voting rights."}},
  {o1:{t:"$3M Capital + Full Ratchet",d:"Severe downside risk. Down-rounds wipe out remaining founder equity."},
   o2:{t:"$2M Capital + Standard Terms",d:"Standard founder protection against predatory future equity adjustments."}},
  {o1:{t:"15% ESOP Created Pre-Money",d:"Dilutes existing founders completely before new investor money enters."},
   o2:{t:"10% ESOP Shared Post-Money",d:"Splits talent pool dilution equally between founders and incoming investors."}},
- {o1:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."},
-  o2:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."}},
- {o1:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."},
-  o2:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."}},
- {o1:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."},
-  o2:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."}},
+ {o1:{t:"Reject Buyout & Reinvest",d:"High operational risk. Keeps startup on track for $100M valuation target."},
+  o2:{t:"Sell Out for $20M Cash",d:"Instant payout. Caps long-term enterprise value below $50M target."}},
+ {o1:{t:"Partner with Mid-Tier VC on Flexible Terms",d:"Protects founder equity rights. Trades away brand status and global investor connections."},
+  o2:{t:"Accept 3-Year Non-Compete & Strict Vesting",d:"Unlocks top-tier VC prestige and network. Risks total equity loss if pushed out early."}},
+ {o1:{t:"Take $750K Credit Line at Higher Interest",d:"Zero equity conversion risk. Provides smaller runway extension with higher cash interest costs."},
+  o2:{t:"Take $2M Debt with Equity Conversion Triggers",d:"Maximizes non-dilutive capital. Risks sudden equity seizure if revenue dips by 20%."}},
  {o1:{t:"Founders Cash Out $250K Each",d:"Provides immediate personal financial security. Gives away 2 extra board observer seats."},
   o2:{t:"Reinvest All Capital into Startup",d:"Keeps governance clean and lean. Leaves founders with zero personal financial safety net."}},
- {o1:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."},
-  o2:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."}}
+ {o1:{t:"Take Local VC Funding with Simple Majority Rules",d:"Maintains rapid operational decision-making. Limits international expansion speed."},
+  o2:{t:"Accept Foreign Capital with 75% Supermajority Rules",d:"Unlocks international market entry. Gives minority investors veto power over daily decisions."}}
 ];
 var N=QUESTIONS.length;
 
