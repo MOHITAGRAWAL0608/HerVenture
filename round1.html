@@ -104,6 +104,8 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
 .cover{flex:1;min-height:58vh;border-radius:26px;border:3px dashed var(--line);background:var(--card);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;cursor:pointer}
 .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:420px}
+.opts.names{grid-template-columns:1fr}
+.opts.names button{font-size:22px;padding:16px 12px}
 .opts button{border:3px dashed var(--line);background:var(--card);border-radius:20px;padding:22px 10px;
   font-family:var(--display);font-size:34px;color:var(--plum);box-shadow:none}
 .opts button.sel{background:var(--plum);color:#fff;border-style:solid;border-color:var(--plum)}
@@ -233,6 +235,17 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
     </div>
   </section>
 
+  <!-- player: vote for the mole -->
+  <section id="scVote" class="stage" hidden>
+    <div class="center">
+      <div class="tag" id="voteTag"></div>
+      <div class="big">Who is the Mole?</div>
+      <p class="note" id="voteHint">Tap the person you suspect. You can change it until the host closes the vote.</p>
+      <div class="opts names" id="voteOpts"></div>
+      <p class="ok" id="voteDone" hidden></p>
+    </div>
+  </section>
+
   <!-- player: role -->
   <section id="scRole" class="stage" hidden>
     <div class="cover" id="roleCover">
@@ -316,7 +329,7 @@ var ANSWER=LS.get("m_ans")||"";
 var myId=null,myTeam=null,myName=null;
 
 function $(id){return document.getElementById(id)}
-var SCREENS=["scSetup","scRoom","scChoose","scCreate","scJoin","scTeam","scSubmit","scRole","scLobby","scAssigned"];
+var SCREENS=["scSetup","scRoom","scChoose","scCreate","scJoin","scTeam","scSubmit","scVote","scRole","scLobby","scAssigned"];
 function show(id){ SCREENS.forEach(function(s){ $(s).hidden=(s!==id); }); }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function rand(n){var s="";for(var i=0;i<n;i++)s+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return s}
@@ -400,6 +413,25 @@ function keyFor(n){ return (D.priv&&D.priv._key&&D.priv._key["c"+n])||null }
 function answerOf(t,n){ return (D.answers&&D.answers[t]&&D.answers[t]["c"+n])||null }
 function caughtOf(t,n){ return !!(D.caught&&D.caught[t]&&D.caught[t]["c"+n]) }
 var PTS_CORRECT=100,PTS_CAUGHT=50;
+function membersOf(t){ return Object.keys(D.players).filter(function(id){ return D.players[id].t===t; }); }
+function moleOf(t,n){
+  var ids=Object.keys(D.priv||{});
+  for(var i=0;i<ids.length;i++){
+    var k=ids[i],v=D.priv[k];
+    if(k!=="_past"&&k!=="_key"&&v&&v.role==="MOLE"&&v.t===t&&(v.c||1)===n) return k;
+  }
+  return null;
+}
+/* The rulebook's rule: the Mole is caught when MORE THAN HALF the team names
+   them - 3 of 5, 2 of 3. Abstentions count against catching, as they should. */
+function tallyOf(t,n){
+  var v=(D.votes[t]&&D.votes[t]["c"+n])||{},members=membersOf(t),mole=moleOf(t,n);
+  var counts={},voted=0;
+  Object.keys(v).forEach(function(voter){ var s=v[voter]; counts[s]=(counts[s]||0)+1; voted++; });
+  var need=Math.floor(members.length/2)+1;
+  var forMole=mole?(counts[mole]||0):0;
+  return {counts:counts,voted:voted,members:members.length,mole:mole,forMole:forMole,need:need,caught:forMole>=need};
+}
 function scoreOf(t){
   var tot=0,rows=[];
   for(var n=1;n<=crisisNo();n++){
@@ -513,19 +545,20 @@ function bindJoin(){
 }
 
 /* ---------- loop ---------- */
-var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{}},mine=null,pollTimer=null,showMoles=false,coverOpen=false,seenCrisis=0;
+var D={pub:{},teams:{},players:{},priv:{},answers:{},caught:{},votes:{}},mine=null,pollTimer=null,showMoles=false,coverOpen=false,seenCrisis=0;
 function loop(){
   if(pollTimer) return;
   var pull=function(){
     var soft=function(x){ return x["catch"](function(){ return null; }); };
     var jobs=isHost
-      ? [store.read("pub"),store.read("teams"),store.read("players"),store.read("priv"),soft(store.read("answers")),soft(store.read("caught"))]
+      ? [store.read("pub"),store.read("teams"),store.read("players"),store.read("priv"),soft(store.read("answers")),soft(store.read("caught")),soft(store.read("votes"))]
       : [store.read("pub"),store.read("teams"),store.read("players"),soft(store.read("priv/"+myId)),
          myTeam?soft(store.read("answers/"+myTeam)):Promise.resolve(null)];
     Promise.all(jobs).then(function(r){
       D.pub=r[0]||{}; D.teams=r[1]||{}; D.players=r[2]||{};
-      if(isHost){ D.priv=r[3]||{}; D.answers=r[4]||{}; D.caught=r[5]||{}; }
+      if(isHost){ D.priv=r[3]||{}; D.answers=r[4]||{}; D.caught=r[5]||{}; D.votes=r[6]||{}; }
       else { mine=r[3]||null; D.answers={}; if(myTeam) D.answers[myTeam]=r[4]||{}; }
+      if(!isHost&&phase()!=="vote") voteKey="";
       if(connBad) setConn(true);
       render();
     })["catch"](function(){ setConn(false,"Reconnecting"); });
@@ -545,6 +578,7 @@ function renderPlayer(){
   myTeam=me.t;
   var tt=D.teams[myTeam]||{};
   if(phase()==="submit"&&tt.lead===myId){ renderSubmit(tt); return; }
+  if(phase()==="vote"&&mine){ renderVote(tt); return; }
   if(phase()!=="submit") resetSubKey();
   if((phase()==="assigned"||phase()==="submit"||phase()==="reveal")&&mine){
     var c=mine.c||crisisNo();
@@ -576,6 +610,32 @@ function renderPlayer(){
     store.write("players/"+myId,null).then(function(){ myTeam=null; LS.del("m_t_"+ROOM); openChoose(); })
      ["catch"](function(){ setConn(false,"Roles are locked"); });
   };
+}
+
+var voteKey="";
+function renderVote(t){
+  show("scVote");
+  var mates=membersOf(myTeam).filter(function(id){ return id!==myId; });
+  var v=(D.votes[myTeam]&&D.votes[myTeam][ckey()])||{};
+  var chosen=v[myId]||null;
+  var k=[crisisNo(),chosen,mates.join(",")].join("|");
+  if(k===voteKey) return;
+  voteKey=k;
+  $("voteTag").textContent="Crisis "+crisisNo()+" · "+(t.name||"your team");
+  var box=$("voteOpts"); box.innerHTML="";
+  mates.forEach(function(id){
+    var b=document.createElement("button");
+    b.type="button"; b.textContent=D.players[id].name; b.className=(chosen===id?"sel":"");
+    b.onclick=function(){
+      store.write("votes/"+myTeam+"/"+ckey()+"/"+myId,id).then(function(){
+        D.votes[myTeam]=D.votes[myTeam]||{}; D.votes[myTeam][ckey()]=D.votes[myTeam][ckey()]||{};
+        D.votes[myTeam][ckey()][myId]=id; voteKey=""; renderVote(t);
+      })["catch"](function(){ setConn(false,"Voting is closed"); });
+    };
+    box.appendChild(b);
+  });
+  $("voteDone").hidden=!chosen;
+  if(chosen) $("voteDone").textContent="You voted for "+D.players[chosen].name;
 }
 
 var subKey="";
@@ -667,17 +727,27 @@ function renderHost(){
   var total=Object.keys(D.players).length;
   var small=ids.filter(function(t){ return T[t].ids.length<3; });
 
-  if(phase()==="assigned"||phase()==="submit"||phase()==="reveal"){
+  if(phase()==="assigned"||phase()==="submit"||phase()==="vote"||phase()==="reveal"){
     show("scAssigned");
     var ph=phase(),submitted=ids.filter(function(t){ return answerOf(t,crisisNo()); }).length;
     $("assignedTag").textContent="Crisis "+crisisNo()+" · correct answer "+(keyFor(crisisNo())||ANSWER)+" · "+ids.length+" teams"+
-      (ph==="submit"?(" · "+submitted+" of "+ids.length+" submitted"):"");
+      (ph==="submit"?(" · "+submitted+" of "+ids.length+" submitted"):"")+
+      (ph==="vote"?(" · voting"):"");
     $("btnPhase").hidden=(ph==="reveal");
-    $("btnPhase").textContent=(ph==="assigned")?"Open submissions":"Close & show results";
+    $("btnPhase").textContent=(ph==="assigned")?"Open submissions":(ph==="submit"?"Open Mole vote":"Close & show results");
     $("btnPhase").onclick=function(){
-      store.patch({"pub/phase":(ph==="assigned")?"submit":"reveal"})["catch"](function(){ setConn(false,"Failed"); });
+      var next=(ph==="assigned")?"submit":(ph==="submit"?"vote":"reveal");
+      store.patch({"pub/phase":next})["catch"](function(){ setConn(false,"Failed"); });
     };
-    if(ph==="reveal") showMoles=true;
+    if(ph==="reveal"){
+      showMoles=true;
+      ids.forEach(function(t){                      /* record the verdict once, host can still override */
+        if(!(D.caught[t]&&D.caught[t][ckey()]!==undefined)){
+          var tl=tallyOf(t,crisisNo());
+          if(tl.mole) store.write("caught/"+t+"/"+ckey(),tl.caught)["catch"](function(){});
+        }
+      });
+    }
     var box=$("assignedBox"); box.innerHTML="";
     ids.forEach(function(t){
       var card=teamCard(t,T[t],{moles:showMoles});
@@ -688,10 +758,24 @@ function renderHost(){
         else line.innerHTML='Answered <b>'+esc(a)+'</b> '+(k?('<span class="pill '+(a===k?"yes":"no")+'">'+(a===k?"correct":"wrong")+'</span>'):"");
         card.appendChild(line);
       }
+      if(ph==="vote"){
+        var tl=tallyOf(t,crisisNo());
+        var vp=document.createElement("div"); vp.className="small"; vp.style.color="var(--muted)";
+        vp.textContent=tl.voted+" of "+tl.members+" voted";
+        card.appendChild(vp);
+      }
       if(ph==="reveal"){
+        var tl2=tallyOf(t,crisisNo());
+        var sum=document.createElement("div"); sum.className="small"; sum.style.color="var(--muted)";
+        sum.innerHTML=tl2.mole
+          ? (tl2.forMole+" of "+tl2.members+" named the Mole ("+tl2.need+" needed) ")+
+            '<span class="pill '+(tl2.caught?"yes":"no")+'">'+(tl2.caught?"caught":"escaped")+'</span>'
+          : "No Mole recorded for this crisis";
+        card.appendChild(sum);
         var tg=document.createElement("button");
         tg.className="toggle"+(caughtOf(t,crisisNo())?" on":"");
         tg.textContent=caughtOf(t,crisisNo())?"Mole caught":"Mole escaped";
+        tg.title="Tap to override the vote";
         tg.onclick=function(){
           store.write("caught/"+t+"/"+ckey(),!caughtOf(t,crisisNo()))["catch"](function(){ setConn(false,"Failed"); });
         };
@@ -701,7 +785,8 @@ function renderHost(){
     });
     renderBoard(ids,T,ph);
     if(ph==="submit") $("assignedNote").textContent="Team leads are submitting. "+submitted+" of "+ids.length+" in.";
-    else if(ph==="reveal") $("assignedNote").textContent="Mark each team after the show of hands, then press Next crisis.";
+    else if(ph==="vote") $("assignedNote").textContent="Everyone is voting for the Mole on their own phone.";
+    else if(ph==="reveal") $("assignedNote").textContent="Verdicts come from the vote. Tap a team's badge only if you need to override it.";
     else $("assignedNote").textContent=showMoles
       ? "Moles shown. Hide this before turning the screen back to the room."
       : "Roles are hidden, so this is safe to project. Read out the teams so everyone sits together.";
@@ -751,7 +836,7 @@ function renderHost(){
   $("btnReset").onclick=function(){
     if(!confirmish("Reset the round? Every team, player and role is cleared.")) return;
     showMoles=false;
-    store.patch({teams:null,players:null,priv:null,answers:null,caught:null,pub:{phase:"lobby",crisis:1}})["catch"](function(){ setConn(false,"Reset failed"); });
+    store.patch({teams:null,players:null,priv:null,answers:null,caught:null,votes:null,pub:{phase:"lobby",crisis:1}})["catch"](function(){ setConn(false,"Reset failed"); });
   };
 }
 
