@@ -103,6 +103,57 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
 .cover{flex:1;min-height:58vh;border-radius:26px;border:3px dashed var(--line);background:var(--card);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;cursor:pointer}
 .cover .eye{font-family:var(--display);font-size:clamp(24px,6.5vw,38px);color:var(--plum)}
+/* ---- projector polish: the lobby is the first thing the room sees ---- */
+.center .teams{width:100%}
+.is-host .wrap{max-width:1680px}
+.center .note,.center .linkbox{max-width:62ch}
+.is-host .code{font-size:clamp(46px,10vw,104px)}
+.is-host .qrbox{padding:18px}
+.is-host .tag{font-size:clamp(11px,1vw,15px)}
+.is-host .note{font-size:clamp(14px,1.05vw,19px)}
+.is-host .linkbox{font-size:clamp(13px,1vw,17px)}
+.is-host .btn:not(.sm):not(.tiny){font-size:clamp(17px,1.3vw,23px);padding:15px 30px}
+.is-host .btn.sm{font-size:clamp(15px,1.1vw,20px);padding:11px 24px}
+
+.joinblock{display:flex;flex-direction:column;align-items:center;gap:12px}
+
+/* Once boardrooms start arriving the join details collapse into a compact strip
+   so the cards get the screen. Latecomers can still scan it. */
+.is-host.has-teams #scLobby .center{justify-content:flex-start;gap:12px}
+.is-host.has-teams #scLobby .joinblock{flex-direction:row;align-items:center;gap:22px;
+  background:var(--card);border:2px dashed var(--line);border-radius:20px;padding:12px 22px}
+.is-host.has-teams #scLobby .joinblock .tag{display:none}
+.is-host.has-teams #scLobby .code{font-size:clamp(30px,3.4vw,50px)}
+.is-host.has-teams #scLobby .qrbox{padding:8px}
+.is-host.has-teams #scLobby .qrbox img,
+.is-host.has-teams #scLobby .qrbox canvas{width:124px!important;height:124px!important}
+.is-host.has-teams #scLobby .linkbox{text-align:left;max-width:30ch}
+.is-host.has-teams #scLobby .tcard{padding:12px 14px}
+.is-host.has-teams #scLobby .tcard li{padding:2px 0}
+.is-host.has-teams #scLobby .tcard .tid{margin-bottom:6px}
+
+.crisistitle{font-family:var(--display);font-weight:600;color:var(--maroon);
+  font-size:clamp(22px,3vw,44px);line-height:1.1;margin:4px 0 0;text-wrap:balance}
+.is-host .tcard h3{font-size:clamp(17px,1.35vw,24px)}
+.is-host .tcard li{font-size:clamp(15px,1.15vw,21px)}
+.is-host .tcard .tid{font-size:clamp(12px,.95vw,16px)}
+.is-host .teams{gap:16px}
+
+/* A phone held sideways has very little height; scale the role card to fit
+   rather than making someone scroll to see whether they are the Mole. */
+@media (max-height:520px){
+  .rolecard,.cover{min-height:0;padding:16px;gap:8px}
+  .rolelabel{font-size:clamp(30px,12vh,58px)}
+  .target{font-size:clamp(17px,5.4vh,26px);padding:10px 14px}
+  .targettext{font-size:clamp(12px,3.2vh,15px)}
+  .mission{font-size:clamp(12px,3.4vh,15px)}
+  .grouppill{font-size:11px}
+  .cover .eye{font-size:clamp(18px,5.5vh,26px)}
+  .teamid{font-size:clamp(30px,13vh,60px);padding:10px 18px}
+  .big{font-size:clamp(20px,7vh,34px)}
+  .wrap{padding-block:10px;gap:10px}
+}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -211,30 +262,30 @@ input[type=text]{width:100%;padding:14px;border:2px solid var(--line);border-rad
 
   <!-- host lobby -->
   <section id="scLobby" class="stage" hidden>
-    <div class="row" style="align-items:flex-start;justify-content:space-between;gap:20px">
-      <div style="flex:0 0 auto;text-align:center">
+    <div class="center">
+      <div class="joinblock">
+        <div class="tag" style="text-align:center">Scan to join · Round 1</div>
         <div class="code" id="lobbyCode">----</div>
-        <div class="qrbox" id="qr" style="display:inline-block;margin-top:8px"></div>
-        <div class="linkbox" id="lobbyLink" style="margin-top:8px"></div>
+        <div class="qrbox" id="qr"></div>
+        <div class="linkbox" id="lobbyLink"></div>
       </div>
-      <div style="flex:1 1 320px;min-width:0">
-        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div class="tag" id="lobbyCount" style="text-align:left">No teams yet.</div>
-          <div class="row">
-            <button class="btn sm" id="btnAssign">Assign roles</button>
-            <button class="btn ghost sm" id="btnReset">Reset round</button>
-          </div>
-        </div>
-        <div class="teams" id="teamsBox"></div>
-        <p class="note" id="lobbyNote" style="margin-top:12px"></p>
+      <div class="note" id="lobbyCount">No teams yet.</div>
+      <div class="teams" id="teamsBox"></div>
+      <p class="note" id="lobbyNote"></p>
+      <div class="row" style="justify-content:center">
+        <button class="btn" id="btnAssign">Assign roles</button>
+        <button class="btn ghost sm" id="btnReset">Reset round</button>
       </div>
     </div>
   </section>
 
   <!-- host: roles out -->
   <section id="scAssigned" class="stage" hidden>
-    <div class="row" style="align-items:center;justify-content:space-between">
-      <div class="tag" id="assignedTag" style="text-align:left"></div>
+    <div class="row" style="align-items:flex-end;justify-content:space-between;gap:18px">
+      <div style="min-width:0">
+        <div class="tag" id="assignedTag" style="text-align:left"></div>
+        <h2 class="crisistitle" id="assignedTitle"></h2>
+      </div>
       <div class="row">
         <button class="btn alt sm" id="btnShowMoles">Reveal moles</button>
         <button class="btn sm" id="btnNextCrisis">Next crisis</button>
@@ -379,7 +430,7 @@ function hostDenied(){
   show("scChoose"); $("roleTag").textContent="Not the host";
   $("scChoose").querySelector("h2").textContent="This room is hosted on another device";
   $("scChoose").querySelector("p").textContent="Only the screen that created room "+ROOM+" can run it. Join as a player instead.";
-  isHost=false; bindChoose();
+  isHost=false; document.body.classList.remove("is-host","has-teams"); bindChoose();
 }
 function openSetup(){
   show("scSetup"); $("roleTag").textContent="Host setup";
@@ -391,12 +442,13 @@ function openSetup(){
 }
 function startHost(){
   isHost=true;
+  document.body.classList.add("is-host");
   if(!/host/i.test(location.hash)) location.hash="host";
   $("roleTag").textContent="Host · Room "+ROOM;
   $("lobbyCode").textContent=ROOM;
   $("lobbyLink").innerHTML='Can’t scan? Open <b>'+esc((location.host+location.pathname).replace(/\/$/,""))+'</b> and enter code <b>'+esc(ROOM)+'</b>';
   var qrHost=$("qr"); qrHost.innerHTML="";
-  if(window.QRCode){ try{ new QRCode(qrHost,{text:playerLink(),width:190,height:190,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
+  if(window.QRCode){ try{ new QRCode(qrHost,{text:playerLink(),width:320,height:320,colorDark:"#43096B",colorLight:"#ffffff"}); }catch(e){} }
   store.write("meta",{hostUid:AUTH.uid,at:Date.now()}).then(function(){
     return store.write("pub/phase","lobby");
   }).then(function(){ setConn(true); loop(); })
@@ -573,13 +625,17 @@ function renderHost(){
   var T=teamsOf(D.teams,D.players),ids=Object.keys(T);
   var total=Object.keys(D.players).length;
   var small=ids.filter(function(t){ return T[t].ids.length<3; });
+  /* with no boardrooms yet the lobby is a big clean join screen; once they
+     start arriving the code shrinks and the cards take the space */
+  document.body.classList.toggle("has-teams", ids.length>0);
 
   if(phase()==="assigned"){
     show("scAssigned");
     var pk=crisisNo()+"|assigned";
     if(pk!==phaseKey){ phaseKey=pk; showMoles=false; }   /* each crisis starts hidden */
-    $("assignedTag").textContent="Crisis "+crisisNo()+" of "+CRISES.length+" · "+crisis(crisisNo()).t+
-      " · "+ids.length+" boardrooms · "+total+" players";
+    $("assignedTag").textContent="Crisis "+crisisNo()+" of "+CRISES.length+" · "+
+      ids.length+(ids.length===1?" boardroom":" boardrooms")+" · "+total+" players";
+    $("assignedTitle").textContent=crisis(crisisNo()).t;
     var box=$("assignedBox"); box.innerHTML="";
     ids.forEach(function(t){ box.appendChild(teamCard(t,T[t],{moles:showMoles})); });
     $("assignedNote").textContent=showMoles
@@ -602,7 +658,7 @@ function renderHost(){
   show("scLobby");
   $("lobbyCount").textContent=ids.length
     ? ids.length+(ids.length===1?" boardroom":" boardrooms")+" · "+total+" players"
-    : "No teams yet";
+    : "Waiting for the first boardroom to register.";
   var box2=$("teamsBox"); box2.innerHTML="";
   ids.forEach(function(t){ box2.appendChild(teamCard(t,T[t],{warn:true,remove:true})); });
   box2.onclick=function(e){
